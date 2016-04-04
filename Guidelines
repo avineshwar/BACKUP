@@ -30,11 +30,15 @@ Thirdly, check the  FS on that volume; it may or may not exist. Enquire that fir
 	  on our EC2 instance.
 
 If user chooses "b", then first tar the directory $PWD.
-Second, ssh to the relevant instance. For this, if EC2_BACKUP_FLAGS_SSH is set, execute "ssh $EC2_BACKUP_FLAGS_SSH username@aws-public-ip" 
+Secondly, instance is not present we will create an instance. For this, if EC2_BACKUP_FLAGS_AWS is set, we will ask the user for instance type of t1.micro. If the environment is not set we will create a default instance by asking the user for its key path or we can create a key as well as part of our creation.
+Creating a key --> setting permission --> creating a security group --> setting instance to be accessed from anywhere using SSH --> deploy an instance .
+Thirdly, as the installation takes time we will check the status of the instance if its running we will proceed with the next step.If its pending we will wait and its its stopped we will start the instance. 
+Fourth, create a new volume and check the status of the volume if it is attached or not.Once it is attached. 
+Fifth, ssh to the relevant instance. For this, if EC2_BACKUP_FLAGS_SSH is set, execute "ssh $EC2_BACKUP_FLAGS_SSH username@aws-public-ip" 
 such that we ask for the value of username and aws-public-ip. If that EnvV is not set, ask for that too or pick one from some default suggested path
 and modify the ssh command accordingly, say, the above command becomes "ssh -i ~/.ssh/key username@aws-public-ip"
 We are now logged into our instance.                     
-Thirdly, since we have added a new volume and kernel will probably rename it and we don't know which OS is in question, greping the naming patterns
+Sixth, since we have added a new volume and kernel will probably rename it and we don't know which OS is in question, greping the naming patterns
 are not going to help. To achieve this task, we have to divide the possibilities of naming conventions that can be followed. The broad categories
 can be of DEB-based OSes, RPM-based OSes and BSD-type OSes. We have to analyze, by attaching certain number of volumes (2 maybe), to understand
 the naming convention being followed by each of these types. OSes that should be used are Amazon Linux, Ubuntu, Fedora, CentOS, NetBSD, FreeBSD.
@@ -55,3 +59,43 @@ Check the  FS on that volume; it may or may not exist. Enquire that first in som
         > if FS does exist, "dd" to it.
           dd will execute on the client machine but I think in two parts; "dd if=tar-file" will start on client but "dd of=/<vol-id> bs=5M" has to be
           on our EC2 instance.
+If user chooses "c", Firstly, ssh to the relevant instance. For this, if EC2_BACKUP_FLAGS_SSH is set, execute "ssh $EC2_BACKUP_FLAGS_SSH username@aws-public-ip"
+such that we ask for the value of username and aws-public-ip. If that EnvV is not set, ask for that too or pick one from some default suggested path
+and modify the ssh command accordingly, say, the above command becomes "ssh -i ~/.ssh/key username@aws-public-ip"
+We are now logged into our instance.  
+Thirdly, check the  FS on that volume; it may or may not exist. Enquire that first in someway.
+	> if FS doesn't exist (maybe be checked using some command), create one using given volume-id (maybe after some modification to it).
+	> if FS exist, "rsync" to it.
+	  rsync options ssh username@public-ip:~/sourcepath /vol-id
+
+If user chooses "d".
+Firstly, instance is not present we will create an instance. For this, if EC2_BACKUP_FLAGS_AWS is set, we will ask the user for instance type of t1.micro. If the environment is not set we will create a default instance by asking the user for its key path or we can create a key as well as part of our creation.
+Creating a key --> setting permission --> creating a security group --> setting instance to be accessed from anywhere using SSH --> deploy an instance .
+Secondly, as the installation takes time we will check the status of the instance if its running we will proceed with the next step.If its pending we will wait and its its stopped we will start the instance. 
+Thirdly, create a new volume and check the status of the volume if it is attached or not.Once it is attached. 
+Fourthly, ssh to the relevant instance. For this, if EC2_BACKUP_FLAGS_SSH is set, execute "ssh $EC2_BACKUP_FLAGS_SSH username@aws-public-ip" 
+such that we ask for the value of username and aws-public-ip. If that EnvV is not set, ask for that too or pick one from some default suggested path
+and modify the ssh command accordingly, say, the above command becomes "ssh -i ~/.ssh/key username@aws-public-ip"
+We are now logged into our instance.                
+Fifth, since we have added a new volume and kernel will probably rename it and we don't know which OS is in question, greping the naming patterns
+are not going to help. To achieve this task, we have to divide the possibilities of naming conventions that can be followed. The broad categories
+can be of DEB-based OSes, RPM-based OSes and BSD-type OSes. We have to analyze, by attaching certain number of volumes (2 maybe), to understand
+the naming convention being followed by each of these types. OSes that should be used are Amazon Linux, Ubuntu, Fedora, CentOS, NetBSD, FreeBSD.
+Once we have our naming patterns identified correctly (check by creating a new FS on those attached volumes; note the commands), we can use this
+knowledge to create a new FS on our newly attached volume in the instance we are currently logged in. On our instance, we will explore the
+possibilities of a certain naming convention being followed when a new volume is attached. We will check for the existence of the paths where raw
+volumes are attached; once that is identified, we will try each naming convention one by one and for all the failures, we will move to the next
+naming convention. Once the naming convention is identified, now it is crucial to actually create a new FS on the correct volume.
+The step where we were building our knowledge about naming convention, we should also analyze which part is consistent and which part is incremental,
+in a raw volume's name. Assuming that we know this, the path on our EC2 instance where raw volumes are being attached and the naming pattern being
+followed, we can start a reverse counter loop (decreases from a high number, say, 100) and when the pattern will exactly match, for some latest
+attached volume, it will create a new FS in that of relevant size. We have to immediately break the loop after FS-creating command executes.
+Fourthly, dd to it. It has been briefly discussed above.
+
+and once done, 
+check the  FS on that volume; it may or may not exist. Enquire that first in someway.
+        > if FS doesn't exist (maybe be checked using some command), create one using given volume-id (maybe after some modification to it).
+        > if FS exist, "rsync" to it.
+	  rsync options ssh username@public-ip:~/sourcepath /vol-id
+
+
