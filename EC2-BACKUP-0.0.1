@@ -1,0 +1,115 @@
+#!/bin/sh
+
+
+# Required parameters
+directory=''
+# Optional parameters
+method='dd' # Method set to dd as default
+volume=''
+
+# Required environment variables
+AWS='' 
+SSH=''
+zone=''
+# Optional environment variables
+verbose='false'
+
+printreadme(){
+	echo "
+     ec2-backup accepts the following command-line flags:
+
+     -h 	   Print a usage statement and exit.
+
+     -m method	   Use the given method to perform the backup.	Valid methods
+		   are 'dd' and 'rsync'; default is 'dd'.
+
+     -v volume-id  Use the given volume instead of creating a new one.
+
+     -d directory  Backup the given directory (default is current)
+	"
+	exit 0;
+}
+
+usage() {
+	echo `basename $0`: ERROR: $* 1>&2
+	echo usage: `basename $0` '[-h] [-m method] [-v volume-id] directory' 1>&2
+	exit 1
+}
+
+
+# NEEDS ERROR HANDLING
+while [ $# -gt 1 ] 
+do
+	case $1 in
+		-h) printreadme;;
+		-m) shift; method="$1"; shift;;
+		-v) shift; volume="$1"; shift;;
+		-*) usage "bad argument $1";;
+		*) usage "bad argument $1";;
+	esac
+done
+
+					
+directory="$1" # NEEDS ERROR HANDLE IF DIRECTORY DOES NOT EXIST
+
+
+if [ -n "$EC2_BACKUP_FLAGS_AWS" ] # Check if backup flag is set
+then 
+	# NEEDS ERROR HANDLE TO CHECK WHETHER AWS FLAG IS VALID INPUT
+	AWS="$EC2_BACKUP_FLAGS_AWS"
+	fi
+else
+	echo "Environment variable EC2_BACKUP_FLAGS_AWS is not set" 
+	exit 1
+fi
+
+if [ -n "$EC2_BACKUP_FLAGS_SSH" ] # Check if backup flag is set
+then 
+	# NEEDS ERROR HANDLE TO CHECK SSH DIRECTORY
+	AWS="$EC2_BACKUP_FLAGS_SSH"
+	fi
+else
+	echo "Environment variable EC2_BACKUP_FLAGS_SSH is not set" 
+	exit 1
+fi
+
+if [ -n "$EC2_BACKUP_VERBOSE" ] # Check if backup flag is set
+then 
+	if [ "$EC2_BACKUP_VERBOSE" -eq "true" ]
+	then
+		verbose='true'
+	else if [ "$EC2_BACKUP_VERBOSE" -eq "false" ]
+		verbose='false'
+	else
+		echo "Invalid value for EC2_BACKUP_VERBOSE, verbose setting default to false"
+	fi
+else
+	verbose='false' # If not set default to false
+fi
+
+################## CREATE THE BACKUP VOLUME ###################
+if[ -z "$volume" ] # if volume was not already specified via input parameter
+then
+	sizeofvolume = # size in GB --- MUST BE AT LEAST TWICE THE SIZE OF THE DIRECTORY TO BE BACKED UP
+	volume=`/usr/bin/ec2-create-volume -s $size $zone | cut -f6` # EC2 COMMANDS ARENT ALWAYS IN /usr/bin better to use EC2_HOME
+
+################## SETUP THE BACKUP INSTANCE ###################
+
+# Determine kernel type of the local machine
+# Create an instance with the same kernel type as the local machine
+# Enter wait loop while instance is spooling  
+# Determine the instance address for logging in
+# Attach volume to instance
+# Enter wait loop while volume is attaching
+# Log into instance
+# mount backup volume
+# format volume
+# Log out of instance
+
+################## BACKUP FILES ###################
+
+################## END PROGRAM ###################
+
+# Detach Volume
+# Terminate instance
+# Print Output
