@@ -1,20 +1,9 @@
 #!/bin/sh
 
 
-# Required parameters
-directory=''
-# Optional parameters
-method='dd' # Method set to dd as default
-volume=''
 
-# Required environment variables
-AWS='' 
-SSH=''
-zone=''
-# Optional environment variables
-verbose='false'
-
-printreadme(){
+################## PRINT FUNCTIONS ###################
+printhelp(){
 	echo "
      ec2-backup accepts the following command-line flags:
 
@@ -36,12 +25,18 @@ usage() {
 	exit 1
 }
 
+################## PARSE PARAMETERS ###################
+# Required parameters
+directory=''
+# Optional parameters
+method='dd' # Method set to dd as default
+volume=''
 
 # NEEDS ERROR HANDLING
 while [ $# -gt 1 ] 
 do
 	case $1 in
-		-h) printreadme;;
+		-h) printhelp;;
 		-m) shift; method="$1"; shift;;
 		-v) shift; volume="$1"; shift;;
 		-*) usage "bad argument $1";;
@@ -52,11 +47,18 @@ done
 					
 directory="$1" # NEEDS ERROR HANDLE IF DIRECTORY DOES NOT EXIST
 
+################## CHECK FLAGS ###################
+# Required environment variables
+AWS_FLAG='' 
+SSH_FLAG=''
+zone=''
+# Optional environment variables
+verbose='false'
 
 if [ -n "$EC2_BACKUP_FLAGS_AWS" ] # Check if backup flag is set
 then 
 	# NEEDS ERROR HANDLE TO CHECK WHETHER AWS FLAG IS VALID INPUT
-	AWS="$EC2_BACKUP_FLAGS_AWS"
+	AWS_FLAG="$EC2_BACKUP_FLAGS_AWS"
 	fi
 else
 	echo "Environment variable EC2_BACKUP_FLAGS_AWS is not set" 
@@ -66,7 +68,7 @@ fi
 if [ -n "$EC2_BACKUP_FLAGS_SSH" ] # Check if backup flag is set
 then 
 	# NEEDS ERROR HANDLE TO CHECK SSH DIRECTORY
-	AWS="$EC2_BACKUP_FLAGS_SSH"
+	SSH_FLAG="$EC2_BACKUP_FLAGS_SSH"
 	fi
 else
 	echo "Environment variable EC2_BACKUP_FLAGS_SSH is not set" 
@@ -81,7 +83,7 @@ then
 	else if [ "$EC2_BACKUP_VERBOSE" -eq "false" ]
 		verbose='false'
 	else
-		echo "Invalid value for EC2_BACKUP_VERBOSE, verbose setting default to false"
+		echo "Invalid value for EC2_BACKUP_VERBOSE, verbose setting default: false"
 	fi
 else
 	verbose='false' # If not set default to false
