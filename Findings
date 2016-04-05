@@ -1,0 +1,7 @@
+Frankly speaking, this is just another file.
+
+Post attaching a volume to an EC2 instance (NetBSD in this case), remote backup using dd is done like this:
+			> tar zcf - . | ssh -i key-file.pem username@publi-ip-here "dd of=/dev/xbd3"
+			[ . is $PWD and xbd3 is the location where the new raw-block device is attached (captured from grep | tail | some-regex-here) ]
+			[ grep | tail | some-regex-here seems to be right because the latest attached volume will be the bottom-most with respect to
+			  other entries of the same type which are already present there, maybe at some position above that in dmesg ]
