@@ -2,6 +2,9 @@ We have to create a backup tool (for offloading backups to an AWS EC2 instance).
 That includes:
 		> Working aws cli package
 		> Proper environment variables set. Refer to tool's help file using "-h" flag to check the requirements.
+		> USER WILL NOT BE INTERACTING WITH THE TOOL IN ANY MANNER. IT IS ONE SHOT EXECUTION WHICH WILL END UP IN,
+		  EITHER SUCCESS OR FAILURE. THIS IS NOT AN OUTPUT RATHER JUST AN ABSTRACTION OF WHAT WILL BE THE NATURE OF
+		  TOOL'S OUTPUT.
 
 
 Let us assume that all the environment variables are set. We will deal with the conditions of them being not set simultaneously.
