@@ -31,6 +31,11 @@ backup_volume_size=`echo $(($backup_volume_size * 2))`
 backup_volume_size=`echo $(($backup_volume_size / 1024))`
 backup_volume_size=`echo $(($backup_volume_size / 1024))`
 backup_volume_size=`echo $(($backup_volume_size + 1))`
+
+# KEEP CHECKING THE VALUE OF "echo $?" AS MUCH AS POSSIBLE AND IF IT IS ZERO (CONFIRM FOR SUCCESSFUL
+# COMMANDS; EXIT CODE NEED NOT BE NECESSARILY 0), THEN ONLY PROCEED.
+
+
 # "path_by_user" SHOULD BE SET WHEN USER EXECUTES THE SCRIPT.
 # FIXTURE NEEDED FOR SIZES. THEY CAN BE IN MBs OR GBs.
 # MUST BE AT LEAST TWICE THE SIZE OF THE DIRECTORY TO BE BACKED UP.
@@ -50,6 +55,9 @@ if [ -z "flag_key" ]
 	chmod 400 $USER-EC2-BACKUP.pem
 	flag_key=$USER-EC2-BACKUP
 
+# KEEP CHECKING THE VALUE OF "echo $?" AS MUCH AS POSSIBLE AND IF IT IS ZERO (CONFIRM FOR SUCCESSFUL
+# COMMANDS; EXIT CODE NEED NOT BE NECESSARILY 0), THEN ONLY PROCEED.
+
 # ASSUMING THAT EC2_BACKUP_FLAGS_SSH IS HAVING THE FORM OF MANUAL, THIS WILL HELP US,
 # key=`echo $EC2_BACKUP_FLAGS_SSH | cut -d / -f3`
 
@@ -60,12 +68,20 @@ if [ -z "flag_key" ]
 
 aws ec2 create-security-group --group-name mysecuritygroup --description "Backup group" > /dev/null && aws ec2 authorize-security-group-ingress --group-name mysecuritygroup --port 22 --protocol tcp --cidr 0.0.0.0/0 > /dev/null
 
+# KEEP CHECKING THE VALUE OF "echo $?" AS MUCH AS POSSIBLE AND IF IT IS ZERO (CONFIRM FOR SUCCESSFUL
+# COMMANDS; EXIT CODE NEED NOT BE NECESSARILY 0), THEN ONLY PROCEED.
+
+
 # WE CAN ALLOW A CIDR-BASED ACCESS TO THE USER AFTER ANALYZING HIS IP FROM IFCONFIG.
 # SECURITY GROUP NAMES CAN COLLIDE AND HENCE "echo ?$" IS NECESSARY BEFORE PROCEEDING.
 
 aws ec2 run-instances --image-id ami-569ed93c --key-name $flag_key $key --security-groups mysecuritygroup --count 1 $EC2_BACKUP_AWS > tee
 availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
 instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
+
+# KEEP CHECKING THE VALUE OF "echo $?" AS MUCH AS POSSIBLE AND IF IT IS ZERO (CONFIRM FOR SUCCESSFUL
+# COMMANDS; EXIT CODE NEED NOT BE NECESSARILY 0), THEN ONLY PROCEED.
+
 
 # "availability_zone" WILL STORE THE REGION WHERE WE WILL CREATE OUR INSTANCE.
 # "instance_id" WILL STORE THE ID WHERE THE VOLUME SHOULD BE ATTACHED.
@@ -77,8 +93,31 @@ instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
 volume_id=`aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}'`
 aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf
 
+# KEEP CHECKING THE VALUE OF "echo $?" AS MUCH AS POSSIBLE AND IF IT IS ZERO (CONFIRM FOR SUCCESSFUL
+# COMMANDS; EXIT CODE NEED NOT BE NECESSARILY 0), THEN ONLY PROCEED.
+
+
 # SINCE THE INSTANCE IS JUST CREATED, WE NEED TO WAIT FOR SOME TIME BEFORE LOGGING IN OR JUST KEEP TRYING
 # REPETITIVELY. USE "sleep" OR "wait" COMMAND.
+
+# I MEASURED AND DID THIS. THIS TIME WAS ENOUGH FOR AN INSTANCE TO BOOT UP PROPERLY (TESTED ON AMAZON
+# LINUX SINCE IT IS COMPARATIVELY A FEATURE-FILLED OS AND HOPEFULLY SHOULD  TAKE MORE TIME THAN OTHERS).
+sleep 225
+
+# KEEP CHECKING THE VALUE OF "echo $?" AS MUCH AS POSSIBLE AND IF IT IS ZERO (CONFIRM FOR SUCCESSFUL
+# COMMANDS; EXIT CODE NEED NOT BE NECESSARILY 0), THEN ONLY PROCEED.
+
+
+# NOW, WE HAVE TO LOGIN AND DO SOMETHING TO "dmesg | tail" USING "sed (MAYBE)" TO GRAB AND SAVE THE
+# VOLUME ID IN A VARIABLE IN THAT INSTANCE LOCALLY AND POST THAT, WE CAN WE ARE READY TO COME BACK TO
+# OUR INSTANCE AND CHOOSE FIRE THE DD COMMAND ACCORDINGLY.
+
+# I AM ASSUMING, IN THAT INSTANCE THERE IS A VARIABLE NAMED "back_vol" HOLDING THE VOLUME-ID OF INTEREST.
+# COMMAND CAN LOOK LIKE THIS (FOR dd):
+tar zvcf - . | ssh -i  "something to extract VOLUME-ID to back_vol ; dd of=/dev/$back_vol" | 2>/dev/null
+
+# KEEP CHECKING THE VALUE OF "echo $?" AS MUCH AS POSSIBLE AND IF IT IS ZERO (CONFIRM FOR SUCCESSFUL
+# COMMANDS; EXIT CODE NEED NOT BE NECESSARILY 0), THEN ONLY PROCEED.
 
 
 # A CRUCIAL FACT SAYS THAT IF A VOLUME WAS CREATED (WHEN USER GIVES THE VOLUME-ID, IT MIGHT HAVE BEEN
