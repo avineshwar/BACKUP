@@ -114,7 +114,7 @@ sleep 225
 
 # I AM ASSUMING, IN THAT INSTANCE THERE IS A VARIABLE NAMED "back_vol" HOLDING THE VOLUME-ID OF INTEREST.
 # COMMAND CAN LOOK LIKE THIS (FOR dd):
-tar zvcf - . | ssh -i  "something to extract VOLUME-ID to back_vol ; dd of=/dev/$back_vol" | 2>/dev/null
+tar zvcf - . | ssh -o StrictHostKeyChecking=no -i $flag_key $key username@public-ip/public-dns "something to extract VOLUME-ID to back_vol ; dd of=/dev/$back_vol" | 2>/dev/null
 
 # KEEP CHECKING THE VALUE OF "echo $?" AS MUCH AS POSSIBLE AND IF IT IS ZERO (CONFIRM FOR SUCCESSFUL
 # COMMANDS; EXIT CODE NEED NOT BE NECESSARILY 0), THEN ONLY PROCEED.
