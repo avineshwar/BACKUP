@@ -1,0 +1,43 @@
+#!/bin/sh
+
+SSH_FLAG='-i ~/ec2key1.pem' # Set to whatever ec2 key
+################## CREATE THE BACKUP VOLUME ###################
+
+sizeofvolume='1' # size in GB --- MUST BE AT LEAST TWICE THE SIZE OF THE DIRECTORY TO BE BACKED UP
+zone='us-east-1c'
+volume=`aws ec2 create-volume -s $sizeofvolume $zone | cut -f6` # EC2 COMMANDS ARENT ALWAYS IN /usr/bin better to use EC2_HOME
+
+################## SETUP THE BACKUP INSTANCE ###################
+
+# Determine kernel type of the local machine
+kernel="Ubuntu"
+# Create an instance with the same kernel type as the local machine
+imageID="ami-0ccb7d64" # for Ubuntu 14.04
+instanceID='aws ec2 run-instances --instance-type t1.micro --security-groups admin --key-name ec2key1 --image-id imageID | grep INSTANCES | cut -f8' 
+# Enter wait loop while instance is spooling
+state=''
+while[ "$state" != "running" ]  
+do
+	state='aws ec2 describe-instances --instance-id $instanceID | grep STATE | cut -f3'
+done
+# Determine the instance address for logging in
+domain='aws ec2 describe-instances --instance-id $instanceID | grep ASSOCIATION | cut -f3 | awk 'NR==1{print $1}''
+# Attach volume to instance
+deviceID='/dev/sdx'
+aws ec2 attach-volume --instance-id "$instanceID" --volume-id "$volume" --device "$deviceID"
+# Enter wait loop while volume is attaching
+state=''
+while[ "$state" != "attached" ]  
+do
+	state='aws ec2 describe-volumes --volume-id "$volume" | grep ATTACHMENTS | cut -f6'
+done
+# Create Mount point
+mountPoint='/mnt/backup' #directory to mount backup volume
+ssh "$SSH_FLAG" -o StrictHostKeyChecking=no ubuntu@"$domain" sudo mkdir $mountPoint
+
+
+# format volume
+# Log out of instance
+
+################## BACKUP FILES ###################
+
