@@ -12,7 +12,7 @@ while getopts 'hm:v:' flag; do
                 v)      volume_id="${OPTARG}"
                         if [ ! -z $avineshwar ]
                         then
-                                echo not empty.
+                                echo reachable code.
                         fi
                         echo $avineshwar was the argument
 
