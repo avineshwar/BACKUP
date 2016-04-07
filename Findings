@@ -5,3 +5,39 @@ Post attaching a volume to an EC2 instance (NetBSD in this case), remote backup 
 			[ . is $PWD and xbd3 is the location where the new raw-block device is attached (captured from grep | tail | some-regex-here) ]
 			[ grep | tail | some-regex-here seems to be right because the latest attached volume will be the bottom-most with respect to
 			  other entries of the same type which are already present there, maybe at some position above that in dmesg ]
+
+I have tested the backup and it worked well output is as follows:
+$ tar cvzf - aws | ssh name@ip "dd of=/home/backup/backup.tar.gz"
+aws/
+aws/ec2-backup
+aws/ec2-backup_1
+aws/ec2-backup_full
+...........
+..........
+aws/rkc.pem
+aws/rootkey.csv
+aws/test/
+2986034+1 records in
+2986034+1 records out
+1528849884 bytes (1.5 GB) copied, 460.558 s, 3.3 MB/s
+
+Whatever was done in Hw2 and 4 helped alot to get to a understanding level of this code.
+As we are repeating many steps in each case we can make use of functions, hence made functions.
+We have to find the volume which will be attached in that case we can take the lsblk output grep and obtain the greatest value of min.
+Experiment what i have done is created an Linux instance and created two volumes and attached it and this is the output 1,2 and 3 time 
+sblk
+NAME  MAJ:MIN RM SIZE RO MOUNTPOINT
+xvda1 202:1    0   8G  0 /
+
+lsblk
+NAME  MAJ:MIN RM SIZE RO MOUNTPOINT
+xvda1 202:1    0   8G  0 /
+xvda2 202:2    0   1G  0
+
+ lsblk
+NAME  MAJ:MIN RM SIZE RO MOUNTPOINT
+xvda1 202:1    0   8G  0 /
+xvda2 202:2    0   1G  0
+xvda3 202:3    0   1G  0
+This will not work for every OS that was the take when i was discussing with my Team mates about it.
+
