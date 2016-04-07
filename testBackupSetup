@@ -13,10 +13,18 @@
 # KEEP USING "tee" TO SAVE YOUR COMMMAND'S OUTPUT AND THEN DEAL WITH IT. A GOOD THING.
 
 
+# IF A VOLUME-ID IS SPECIFIED, THAT MEANS IT IS ALREADY EXISTING IN SOME AVAILABILITY ZONE (WITH OR W/O
+# A FS). HENCE, THE INSTANCE HAS TO BE CREATED IN THAT AVAILABILITY ZONE BUT NOT EVERY AMI-ID IS
+# SUPPORTED IN EVERY ZONE. THERE SHOULD BE A QUERY FOR THAT VOLUME'S ZONE AND THEN CHOOSE AN INSTANCE TO
+# CREATE, IN THAT AVAILABILITY ZONE.
+# A COMMAND FOR THAT CAN BE:
+# aws ec2 run-instances --image-id some-support-image-id-here --key-name $flag_key $key --security-groups mysecuritygroup $EC2_BACKUP_FLAGS_AWS --count 1 --placement="AvailabilityZone=$captured_avail_zone_from_instance"
+
+
 # SET VARIABLES
 flag_verbose=$EC2_BACKUP_VERBOSE
 flag_key=$EC2_BACKUP_FLAGS_SSH
-flag_instance_type=$EC2_BACKUP_AWS
+flag_instance_type=$EC2_BACKUP_FLAGS_AWS
 
 # THEIR VALUES WILL BE PICKED UP FROM USER'S ENVIRONMENT.
 # WHAT IF IT IS NOT SET? WE NEED EQUIVALENT REPLACEMENT TO MAKE THE COMMAND GO THROUGH.
@@ -75,7 +83,7 @@ aws ec2 create-security-group --group-name mysecuritygroup --description "Backup
 # WE CAN ALLOW A CIDR-BASED ACCESS TO THE USER AFTER ANALYZING HIS IP FROM IFCONFIG.
 # SECURITY GROUP NAMES CAN COLLIDE AND HENCE "echo ?$" IS NECESSARY BEFORE PROCEEDING.
 
-aws ec2 run-instances --image-id ami-569ed93c --key-name $flag_key $key --security-groups mysecuritygroup --count 1 $EC2_BACKUP_AWS > tee
+aws ec2 run-instances --image-id ami-569ed93c --key-name $flag_key $key --security-groups mysecuritygroup --count 1 $EC2_BACKUP_FLAGS_AWS > tee
 availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
 instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
 
