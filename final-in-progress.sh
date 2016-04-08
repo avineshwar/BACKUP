@@ -53,6 +53,23 @@ while getopts 'hm:v:' flag; do
 								echo $?
 								exit 0
                         # methods should go in here. follow every acceptable check.
+			if [ "method" == "rsync" -o -z "$method" ]
+
+						then
+								aws ec2 run-instances --image-id ami-569ed93c --key-name $key --security-groups $USER-EC2-BACKUP-group --count 1 $EC2_BACKUP_FLAGS_AWS > tee
+								availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
+								instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
+								volume_id=`aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}'`
+								aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf
+								echo "Going to sleep"
+								sleep 225
+								echo "Woke up"
+
+								# fetch public-ip/public-dns to log in"
+								ssh -o StrictHostKeyChecking=no -i $key root@public-ip/public-dns "mkdir /mnt/backupdir; mount /dev/sdf /mnt/backupdir"
+								rsync -aze 'ssh -o StrictHostKeyChecking=no -i $key' $dir_to_backup root@public-ip/public-dns:/mnt/backupdir
+
+					fi # for verbose mode use options '-Pazve' with rsync.
                 ;;
                 
                 v)      volume_id="${OPTARG}"
