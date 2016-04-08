@@ -49,6 +49,7 @@ while getopts 'hm:v:' flag; do
 								echo "Woke up"
 								# fetch public-ip/public-dns to log in"
 								tar zvcf - $dir_to_backup | ssh -o StrictHostKeyChecking=no -i $key root@public-ip/public-dns "back_vol=`dmesg|tail - 1 | cut -d : -f1`` ; dd of=/dev/$back_vol" | 2>/dev/null
+						fi
 								echo $?
 								exit 0
                         # methods should go in here. follow every acceptable check.
