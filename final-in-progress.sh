@@ -3,23 +3,26 @@
 while getopts 'hm:v:' flag; do
         case ${flag} in
                 m)
-                      #  egrep -o '([0-9a-fA-F][0-9a-fA-F]:){4,5}([0-9a-fA-F][0-9a-fA-F])'
-                      #  exit 0
-                      #  #doesn't works correctly on OmniOS. After fixing, check for other OSes too.
+                        # methods should go in here. follow every acceptable check.
                 ;;
-                h)      echo hello. This is help.
+                h)      # This should go first.
+                        echo hello. This is help.
+                        exit 0
                 ;;
+                
                 v)      volume_id="${OPTARG}"
-                        if [ ! -z $avineshwar ]
+                        if [ ! -z "$volume_id" ]
                         then
-                                echo reachable code.
+                                echo "reachable code."
                         fi
-                        echo $avineshwar was the argument
-
+                        echo "$volume_id was the argument"
+                        exit 0
                 ;;
+
                 *)
                         echo Wrong flag chosen.
                         exit 1
                 ;;
         esac
 done
+exit 0
