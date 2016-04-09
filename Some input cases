@@ -1,0 +1,9 @@
+if -m is the 1st argument and 2nd argument is not dd or rsync, exit 1.
+if -v or dd or rsync is the first argument, exit 1.
+if -h is the first argument, it should be the only argument. (exit 0). 
+if -m is the 2nd argument, exit 1.
+if -v is the 2nd argument, exit 1.
+if -v is the 3rd argument and $4 doesn't starts with "vol-.{8}", exit 1.
+
+
+There is a possibility of repetitions. Fix it while putting it down on script.
