@@ -59,7 +59,14 @@ do
 			esac
 			;;
 		-*) usage;;
-		*) dir_to_backup="$1"; break;;
+		 *) 
+		 	if [ $# -gt 1 ] 
+		 	then
+		 		echo "Directory must be the last line item."; usage
+		 	else
+		 		$dir_to_backup=$1
+		 	fi
+		 	;;
 	esac
 done
 
