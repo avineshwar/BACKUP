@@ -8,10 +8,19 @@ dir_to_backup="$3"
 
 
 ### TO IMPLEMENT:
-## POSSIBLE REGEX (FOR KEY VARIABLE)
+## POSSIBLE REGEX (BASH) (FOR KEY VARIABLE)
 # myregex="-i\s+~\/.\w{3}\/\w+"
 # x="-i     ~/.abc/adsajdjla"
 # if [[ $x =~ [^$myregex] ]]; then echo hello; fi
+# FOR SH
+# #!/bin/sh
+# x="-i          .ssh/asdksadjkla"
+# myregex="-i\s+~\/.\w{3}\/\w+"
+# if echo "$x" | grep -q "[-i\s+~\/.\w{3}\/\w+]"
+# then
+#         echo hello
+# fi
+
 ## IF A USER GIVES A VOLUME, IT HAS TO CHECK WHETHER IT IS POSSIBLE TO FIT THE GIVEN PATH. IF NOT, EXIT 1.
 ## WHEN THE VOLUME ID IS PROVIDED, IT HAS TO FOLLOW ITS REGEX, SHOULD ALWAYS BE THE FOURTH ARGUMENT.
 ## MANY OTHER THINGS TO FIX. NOTED IN ANOTHER FILE.
