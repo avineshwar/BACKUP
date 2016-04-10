@@ -116,26 +116,26 @@ then
 else
 	rollback_key=0
 	# If the key flag was set, check if the identity_file flag is set
-	if echo "$EC2_BACKUP_FLAGS_SSH" | grep -q "[-i\s+\w+]"
+	flag=$(echo $EC2_BACKUP_FLAGS_SSH | tr -s ' ' | cut -d " " -f1) 
+	key_file=$(echo $EC2_BACKUP_FLAGS_SSH | tr -s ' ' | cut -d " " -f2)
+	if [ "$flag" != -i ]
 	then
-		key_file=$(echo $EC2_BACKUP_FLAGS_SSH | tr -s ' ' | cut -d " " -f2)
-	else
-		echo "EC2_BACKUP_FLAGS_SSH must set the identity file flag only"
+		echo "EC2_BACKUP_FLAGS_SSH must set the identity file flag. Any other flags are not supported."
 		exit 1
 	fi
 
-	# Check if key file exists and is readable
-	if [ -e "$key_file" ]
+	# Check if the keyfile is valid
+	if [ -e "$key_file" ] 
 	then
-		if [ $verbose = 'true' ]
-		then
-			echo "EC2_BACKUP_FLAGS_SSH environment variable set too $EC2_BACKUP_FLAGS_SSH"
-			echo "Keyfile found at $key_file"
-		fi
-	else
 		echo "EC2_BACKUP_FLAGS_SSH environment variable set with an invalid or non-readable keyfile"
 		exit 1
 	fi
-fi
+
+	# If verbose option is set dusplay flag info
+	if [ $verbose = 'true' ]
+	then
+		echo "EC2_BACKUP_FLAGS_SSH environment variable set too: $EC2_BACKUP_FLAGS_SSH"
+		echo "Keyfile found at $key_file"
+	fi
 
 exit 0
