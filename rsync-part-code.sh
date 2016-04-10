@@ -1,94 +1,5 @@
-#!/bin/sh
 
-dir_to_backup="$3"
-
-### IS FOR THE HEADING.
-## IS THE STATEMENT AND,
-# IS THE STATEMENT CONTINUED.
-
-
-### TO IMPLEMENT:
-## POSSIBLE REGEX (BASH) (FOR KEY VARIABLE)
-# myregex="-i\s+~\/.\w{3}\/\w+"
-# x="-i     ~/.abc/adsajdjla"
-# if [[ $x =~ [^$myregex] ]]; then echo hello; fi
-# FOR SH
-# #!/bin/sh
-# x="-i          .ssh/asdksadjkla"
-# myregex="-i\s+~\/.\w{3}\/\w+"
-# if echo "$x" | grep -q "[-i\s+~\/.\w{3}\/\w+]"
-# then
-#         echo hello
-# fi
-## IF IT IS A GOOD ALTERNATIVE, USE AS MUCH REGEX AS POSSIBLE. I AM NOT SURE HOW GOOD THIS APPROACH IS.
-## IF A USER GIVES A VOLUME, IT HAS TO CHECK WHETHER IT IS POSSIBLE TO FIT THE GIVEN PATH. IF NOT, EXIT 1.
-## WHEN THE VOLUME ID IS PROVIDED, IT HAS TO FOLLOW ITS REGEX, SHOULD ALWAYS BE THE FOURTH ARGUMENT.
-## MANY OTHER THINGS TO FIX. NOTED IN ANOTHER FILE.
-## IF A VOLUME ID IS PROVIDED, BEFORE FORMATTING IT, TRY TO CHECK FOR A FILESYSTEM IN THAT AND ACCORDINGLY EITHER FORMAT IT OR DIRECTLY MOUNT AND USE IT.
-## CHECK IF THE KEY IS HAVING 400 PERMISSIONS OR NOT; IF NOT, SLEEP FOR A MINUTE TO GIVE USER A CHANCE TO FIX IT BEFORE EXITING.
-## WE CAN ALSO TEMPORARILY CHANGE IT AND ROLL IT BACK.
-
-### EXTRAS:
-## INTERRUPTS. IF GIVEN, SHOULD GIVE RISE TO ROLLBACK. ALTERNATIVELY, A WARNING AND A ROLLBACK. MAYBE SOMETHING LIKE CREATING A FILE SOMEWHERE WHICH GETS CREATED WITH CERTAIN INFORMATION
-# IF AN INTERRUPT IS RECEIVED AS A LOG FOR THE SCRIPT OWNER TO CHECK WHETHER THE SCRIPT WAS DISTURB DURING THE PROCESS.
-
-
-echo "Failures are with exit code 1 and success with 0"
-echo "number of arguments is/are $#"
-echo "Right now, the assumption says that the user is going to enter arguments in a described correct order"
-echo "That means, expected number of argument can be 3 or 5"
-echo "For 3 arguments, it can be \"-m dd/rsync dir_to_backup\""
-echo "For 5 arguments, it can be \"-m dd/rsync -v an_existing_volume_id_here dir_to_backup\""
-echo "This script will try to handle other kind of errors upto some extent"
-echo "Whenever there is something to test, use exit 0 just after that/before that (depends what you are looking for)."
-
-if [ "$dir_to_backup" == "-v" -o "$dir_to_backup" == "-m" -o "$dir_to_backup" == "-h" ]
-then
-	dir_to_backup="$5"
-	if [ ! -z "$dir_to_backup" ]
-	then
-		echo $dir_to_backup is the directory to backup.
-	else
-		exit 1
-	fi
-else
-	echo $dir_to_backup is the directory to backup.
-fi
-#exit 0
-while getopts 'hm:v:' flag; do
-        case ${flag} in
-                h)      # This should go first.
-                        echo hello. This is help.
-                        exit 0
-                ;;
-                
-				                
-                v)      volume_id="${OPTARG}"
-                        echo "$volume_id was the argument"
-                ;;
-
-		m)		method="${OPTARG}"
-						if [ "$method" == "dd" -o -z "$method" ]
-						then
-								# SET VARIABLES
-verbose=$EC2_BACKUP_VERBOSE
-key=$EC2_BACKUP_FLAGS_SSH
-instance_type=$EC2_BACKUP_FLAGS_AWS
-
-echo $?
-echo "$dir_to_backup is the path to backup"
-echo $?
-backup_volume_size=`du -s $dir_to_backup 2>/dev/null | cut -f1`
-echo $?
-backup_volume_size=`echo $(($backup_volume_size * 2))`
-echo $?
-backup_volume_size=`echo $(($backup_volume_size / 1024))`
-echo $?
-backup_volume_size=`echo $(($backup_volume_size / 1024))`
-echo $?
-backup_volume_size=`echo $(($backup_volume_size + 2))`
-echo $?
-
+#This is the basic rsync part, modifications are required to complete it and attach it to the main final script.
 if [ -z "$key" ]
 then
 		aws ec2 create-key-pair --key-name $USER-EC2-BACKUP-key --query 'KeyMaterial' --output text > $USER-EC2-BACKUP-key.pem 2>/dev/null && chmod 400 $USER-EC2-BACKUP-key.pem
@@ -143,8 +54,13 @@ fi
 # exit 0
 								
 								# done above. dir_to_backup="$1"
-								# spinning a NetBSD instance.
-								aws ec2 run-instances --image-id ami-569ed93c --key-name $key --security-groups $USER-EC2-BACKUP-group --count 1 $EC2_BACKUP_FLAGS_AWS > tee
+								# spinning a Amazon Linux instance we already have rsync installed in this.
+								# As we have the Privilege to spin any instance we have considered amazon Linux
+								# Or else we have to check if rsync is installed or not.
+								#cmd_check "rsync" "ERROR: rsync utility not found" \
+								#"rsync utility found installed..." "RSYNC_CMD"
+
+								aws ec2 run-instances --image-id ami-22111148 --key-name $key --security-groups $USER-EC2-BACKUP-group --count 1 $EC2_BACKUP_FLAGS_AWS > tee
 								echo $?
 								availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
 								echo $?
@@ -199,15 +115,44 @@ fi
 								echo $?
 								public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
 								echo $?
-								ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
-								#  && back_vol=`dmesg|tail - 1 | cut -d : -f1` ; mkdir /mnt/mount_point ; newfs /dev/r$back_vola ; mount /dev/$back_vola /mnt/mount_point/"								
+								back_vol=$(ssh -o StrictHostKeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
 								echo $?
-								tar zvcf - $dir_to_backup | ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "dd of=/mnt/mount_point/tarfile" &>/dev/null 
+								if [ $(echo $?) != 0 ]
+								then
+        							echo "exit code is not 0"
+        							exit 1
+								ssh -o StrictHostKeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf"
+								echo $?
+								if [ $(echo $?) != 0 ]
+								then
+        							echo "exit code is not 0"
+        							exit 1
+								ssh -o StrictHostKeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkdir /mnt/backupdir"
+								echo $?
+								if [ $(echo $?) != 0 ]
+								then
+        							echo "exit code is not 0"
+        							exit 1
+								ssh -o StrictHostKeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mount /dev/sdf /mnt/backupdir"
+								echo $?
+								if [ $(echo $?) != 0 ]
+								then
+        							echo "exit code is not 0"
+        							exit 1
+								#The test was done in many ways few of them to was to undertand what is the difference we see when we use one option and when we dont use.
+								#For example when we used -R we were to obtain the complete the structure of the source.
+								#In this case we dont need this but if the user wants the complete structure we can impliment.
+								#File of any size is being transferred was tested.
+								rsync -avzre "ssh -o StrictHostKeyChecking=no -i $key.pem" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir &>/dev/null
 								# output suppressing might be required (something more than just removing "v"). Please check for every command.
 						fi
 								echo $?
-								ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
+								ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/bin/umount /mnt/backupdir"
 								echo $?
+								if [ $(echo $?) != 0 ]
+								then
+        							echo "exit code is not 0"
+        							exit 1
 								aws ec2 terminate-instances --instance-id $instance_id > /dev/null
 								echo "$? is the return code for instance termination. If a new security group was added, it will be deleted too (and the key, if it was newly created). Checking, please wait..."
 								if [ "$rollback_sg" == 1 ]
@@ -233,7 +178,4 @@ fi
                 *)
                         echo Wrong flag chosen.
                         exit 1
-                ;;
-        esac
-done
-exit 0
+
