@@ -64,7 +64,7 @@ do
 		 	then
 		 		echo "Directory must be the last line item."; usage
 		 	else
-		 		$dir_to_backup=$1; shift
+		 		dir_to_backup=$1; shift
 		 	fi
 		 	;;
 	esac
@@ -137,5 +137,5 @@ else
 		echo "EC2_BACKUP_FLAGS_SSH environment variable set too: $EC2_BACKUP_FLAGS_SSH"
 		echo "Keyfile found at $key_file"
 	fi
-
+fi
 exit 0
