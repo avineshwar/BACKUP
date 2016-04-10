@@ -64,7 +64,7 @@ do
 		 	then
 		 		echo "Directory must be the last line item."; usage
 		 	else
-		 		$dir_to_backup=$1
+		 		$dir_to_backup=$1; shift
 		 	fi
 		 	;;
 	esac
