@@ -58,6 +58,8 @@ then
 	error_differentiator=1
 	delete_instance_key_group
 	exit 1	
+fi
+
 }
 
 ###### Rollbacker ######
