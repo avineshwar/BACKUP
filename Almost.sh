@@ -49,6 +49,7 @@ checkvolume () {
 
 ###### creates an instance for dd ######
 create_dd_instance () {
+echo "creating instance "
 # "ami-569ed93c" is the AMI-ID for NetBSD.
 aws ec2 run-instances --image-id ami-569ed93c --key-name "$key" --security-groups "$USER-EC2-BACKUP-group" --count 1 "$EC2_BACKUP_FLAGS_AWS" > tee
 availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
@@ -59,6 +60,7 @@ then
 	delete_instance_key_group
 	exit 1	
 fi
+echo "creating instance exiting "
 }
 
 ###### creates an instance for rsync ######
@@ -73,7 +75,6 @@ then
 	delete_instance_key_group
 	exit 1	
 fi
-
 }
 
 ###### Rollbacker ######
@@ -304,10 +305,9 @@ then
 		if [ -z "$volume_id" ]
 		then
 			rollback_vol=1
-			echo "$key is my key"
 			echo "$key is my key"			
 			create_dd_instance
-			sleep 22511
+			sleep 225
 			volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
 			echo "$volume_id is ID of the newly volume ($availability_zone is the zone)."
 			sleep 45
