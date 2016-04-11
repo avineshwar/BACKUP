@@ -1,5 +1,4 @@
 #!/bin/sh
-
 #===================================================================================#
 #	title          :EC2-BACKUP                                                  #
 #	description    :Backs up a local directory to an AWS EC2 cloud volume       #
