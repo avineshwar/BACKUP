@@ -82,7 +82,7 @@ then
 	echo "No directory specified"
 	usage
 	exit 1
-elif [ -d "$dir_to_backup" ] # THIS DOES NOT RECOGNIZE '/' as a directory!!!!!!!!
+elif [ -d "$dir_to_backup" ] && [ $dir_to_backup != "/" ]
 then
 	echo "$dir_to_backup is not an existing directory"
 	exit 1
@@ -155,7 +155,8 @@ else
 	# If verbose option is set dusplay flag info
 	if $EC2_BACKUP_VERBOSE
 	then
-		echo "\nEC2_BACKUP_FLAGS_SSH: $EC2_BACKUP_FLAGS_SSH"
+		echo "\nEC2_BACKUP_FLAGS_AWS: $EC2_BACKUP_FLAGS_AWS"
+			 "EC2_BACKUP_FLAGS_SSH: $EC2_BACKUP_FLAGS_SSH"
 		echo "Keyfile found at $key_file"
 	fi
 fi
@@ -189,7 +190,7 @@ then
 	echo "	CIDR IP range: 0.0.0.0/0"
 fi
 
-###### Create voleume of non provided ######
+###### Create volume if not provided ######
 
 ###### Spin up instance ######
 
