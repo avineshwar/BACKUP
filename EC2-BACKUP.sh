@@ -280,25 +280,30 @@ fi
 
 ###### Instance creation & volume creation (if not provided) ######
 
-if [ -z "$volume_id" ]
+if [ "$method" == "dd" -o -z "$method" ]
 then
-	rollback_vol=1
-	create_dd_instance
-	sleep 225
-	volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
-	sleep 30
-	aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
-	sleep 30 # necessary to make the volume accessible post attachment.
-	public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
-	ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+	if [ -z "$volume_id" ]
+	then
+		rollback_vol=1
+		create_dd_instance
+		sleep 225
+		volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
+		sleep 30
+		aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+		sleep 30 # necessary to make the volume accessible post attachment.
+		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+		ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+	else
+		avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
+		create_dd_instance
+		sleep 225
+		aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+		sleep 30 # necessary to make the volume accessible post attachment.
+		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+		ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
 else
-	avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
-	create_dd_instance
-	sleep 225
-	aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
-	sleep 30 # necessary to make the volume accessible post attachment.
-	public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
-	ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+	## details for rsync's instance and volumes.
+fi
 
 
 ###### Backup Method = dd ######
