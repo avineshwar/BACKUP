@@ -1,13 +1,13 @@
 #!/bin/sh
 
 #===================================================================================#
-#	title          :EC2-BACKUP                              	                    #
-#	description    :Backs up a local directory to an AWS EC2 cloud volume	        #
-#	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;   	    #
-#	date           :20160410                                                     	#
-#	version        :0.1.0													    	#
-#																			    	#
-#	P.S. :: Alphabetical order naming system                                     	#
+#	title          :EC2-BACKUP                              	            #
+#	description    :Backs up a local directory to an AWS EC2 cloud volume	    #
+#	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;       #
+#	date           :20160410                                                    #
+#	version        :0.1.0							    #
+#										    #	
+#	P.S. :: Alphabetical order naming system                                    #
 #===================================================================================#
 
 ###### printhelp function prints the help page ######
