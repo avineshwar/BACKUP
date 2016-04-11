@@ -62,6 +62,21 @@ fi
 
 }
 
+###### creates an instance for rsync ######
+create_rsync_instance () {
+# "ami-22111148" is the AMI-ID for Amazon Linux.
+aws ec2 run-instances --image-id ami-22111148 --key-name $key --security-groups $USER_EC2_BACKUP_group --count 1 $EC2_BACKUP_FLAGS_AWS > tee
+availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
+instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
+if [ "$avail_zone_of_user_vol" != "$availability_zone" ]
+then
+	error_differentiator=1
+	delete_instance_key_group
+	exit 1	
+fi
+
+}
+
 ###### Rollbacker ######
 
 delete_instance_key_group () {
@@ -305,8 +320,27 @@ then
 		ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
 	fi
 else
-	true
-	## details for rsync's instance and volumes.
+	if [ "$method" == "rsync" ]
+	then
+		rollback_vol=1
+		create_rsync_instance
+		sleep 225
+		volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
+		sleep 30
+		aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+		sleep 30 # necessary to make the volume accessible post attachment.
+		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+		back_vol=$(ssh -o StrictHostKeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
+		ssh -o StrictHostKeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+	else
+		avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
+		create_dd_instance
+		sleep 225
+		aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+		sleep 30 # necessary to make the volume accessible post attachment.
+		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+		back_vol=$(ssh -o StrictHostKeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
+		ssh -o StrictHostKeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
 fi
 
 
@@ -340,9 +374,28 @@ fi
 #echo "Bbye."
 #exit 0
 
-
 ###### Backup Method = rsync ######
-
+if [ "$method" == "rsync" ]
+then
+	if [ "$verbose" = 'true' ]
+	then
+		rsync -avzre "ssh -o StrictHostKeyChecking=no -i $key.pem" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir &>/dev/null
+		if [ $(echo $?) != 0 ]
+		then
+			delete_instance_key_group_volume
+			exit 1
+		else
+			ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/bin/umount -f /mnt/backupdir"	
+	else
+		rsync -avzroe "ssh -o StrictHostKeyChecking=no -i $key.pem" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir >/dev/null 2>&1
+		if [ $(echo $?) != 0 ]
+		then
+			delete_instance_key_group_volume
+			exit 1
+		else
+			ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/bin/umount -f /mnt/backupdir"
+	fi
+fi
 
 ###### Clean up and exit ######
 #aws ec2 delete-security-group --group-name "$USER_EC2_BACKUP_group" >/dev/null 2>&1
