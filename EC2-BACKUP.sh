@@ -357,6 +357,7 @@ then
 			exit 1
 		else
 			ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/umount -f /mnt/mount_point"	
+	    fi
 	else
 		tar zcf - $dir_to_backup | ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "dd of=/mnt/mount_point/tarfile" >/dev/null 2>&1
 		if [ $(echo $?) != 0 ]
@@ -386,6 +387,7 @@ then
 			exit 1
 		else
 			ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/bin/umount -f /mnt/backupdir"	
+	    fi
 	else
 		rsync -avzroe "ssh -o StrictHostKeyChecking=no -i $key.pem" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir >/dev/null 2>&1
 		if [ $(echo $?) != 0 ]
@@ -394,7 +396,8 @@ then
 			exit 1
 		else
 			ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/bin/umount -f /mnt/backupdir"
-	fi
+	    fi
+	fi    
 fi
 
 ###### Clean up and exit ######
