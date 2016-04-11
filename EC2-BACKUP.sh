@@ -196,10 +196,10 @@ fi
 if [ -z "$volume_id" ]
 then
 	backup_volume_size=$(du -s "$dir_to_backup" 2>/dev/null | cut -f1)
-	backup_volume_size=$(("$backup_volume_size" * 2))
-	backup_volume_size=$(("$backup_volume_size" / 1024))
-	backup_volume_size=$(("$backup_volume_size" / 1024))
-	backup_volume_size=$(("$backup_volume_size" + 2))
+	backup_volume_size=$(($backup_volume_size * 2))
+	backup_volume_size=$(($backup_volume_size / 1024))
+	backup_volume_size=$(($backup_volume_size / 1024))
+	backup_volume_size=$(($backup_volume_size + 2))
 fi
 
 ###### Print out parameter settings if verbose option set ######
@@ -296,7 +296,7 @@ fi
 
 ###### Instance creation & volume creation (if not provided) ######
 
-if [ "$method" == "dd" -o -z "$method" ]
+if [ "$method" == "dd" ]
 then
 	if [ -z "$volume_id" ]
 	then
