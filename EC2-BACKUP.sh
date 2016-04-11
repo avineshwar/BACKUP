@@ -1,12 +1,13 @@
 #!/bin/sh
+
 #===================================================================================#
-#	title          :EC2-BACKUP                                                  #
-#	description    :Backs up a local directory to an AWS EC2 cloud volume       #
-#	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;       #
-#	date           :20160410                                                    #
-#	version        :0.1.0							    #
-#										    #
-#	P.S. :: Alphabetical order naming system                                    #
+#	title          :EC2-BACKUP                              	                    #
+#	description    :Backs up a local directory to an AWS EC2 cloud volume	        #
+#	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;   	    #
+#	date           :20160410                                                     	#
+#	version        :0.1.0													    	#
+#																			    	#
+#	P.S. :: Alphabetical order naming system                                     	#
 #===================================================================================#
 
 ###### printhelp function prints the help page ######
@@ -39,8 +40,7 @@ checkvolume () {
 		echo "-v invoked with no parameter value"; usage; exit 1
 	fi
 	aws ec2 describe-volumes --volume-id "$volume_id" >/dev/null 2>&1
-    errorcheck=$(echo $?)
-	if [ "$errorcheck" != 0 ]
+    if [ $(echo $?) != 0 ]
     then
     	echo "$volume_id is not an existing volume"
     	exit 1
@@ -49,52 +49,42 @@ checkvolume () {
 
 ###### creates an instance for dd ######
 create_dd_instance () {
-	echo "poo"
+echo "creating instance "
 # "ami-569ed93c" is the AMI-ID for NetBSD.
-if [ "$user_provided_ssh" = "0" ]
-then
-	echo "pooO"
-	aws ec2 run-instances --image-id ami-569ed93c --key-name $key --security-groups $USER_EC2_BACKUP_group --count 1 $EC2_BACKUP_FLAGS_AWS > tee
-else
-	aws ec2 run-instances --image-id ami-569ed93c --security-groups $USER_EC2_BACKUP_group --count 1 $EC2_BACKUP_FLAGS_AWS > tee
-fi
-echo "pooO0"
+aws ec2 run-instances --image-id ami-569ed93c --key-name "$key" --security-groups "$USER-EC2-BACKUP-group" --count 1 "$EC2_BACKUP_FLAGS_AWS" > tee
 availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
 instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
-if [ "$avail_zone_of_user_vol" != "$availability_zone" ]
+if [ "$avail_zone_of_user_vol" != "$availability_zone" ] && [ "$rollback_vol" != "1" ]
 then
 	error_differentiator=1
 	delete_instance_key_group
 	exit 1	
 fi
-echo "pooO0OOo"
+echo "creating instance exiting "
 }
 
 ###### creates an instance for rsync ######
 create_rsync_instance () {
 # "ami-22111148" is the AMI-ID for Amazon Linux.
-if [ "$user_provided_ssh" = "0" ]
-then
-	aws ec2 run-instances --image-id ami-22111148 --key-name $key --security-groups $USER_EC2_BACKUP_group --count 1 $EC2_BACKUP_FLAGS_AWS > tee
-else
-	aws ec2 run-instances --image-id ami-22111148 --security-groups $USER_EC2_BACKUP_group --count 1 $EC2_BACKUP_FLAGS_AWS > tee
-fi
-
+aws ec2 run-instances --image-id ami-22111148 --key-name "$key" --security-groups "$USER-EC2-BACKUP-group" --count 1 "$EC2_BACKUP_FLAGS_AWS" > tee
+echo "created rsync instance"
 availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
 instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
-if [ "$avail_zone_of_user_vol" != "$availability_zone" ]
+echo "done"
+echo "$instance_id"
+echo "$availability_zone"
+if [ "$avail_zone_of_user_vol" != "$availability_zone" ] && [ "$rollback_vol" != "1" ]
 then
 	error_differentiator=1
 	delete_instance_key_group
 	exit 1	
 fi
-
 }
 
 ###### Rollbacker ######
 
 delete_instance_key_group () {
-if [ $error_differentiator = 1 ]
+if [ "$error_differentiator" = "1" ]
 then
 	echo "Error. Availability zones differ. Script is rolling back."
 	echo "Roll back will take 60 seconds."
@@ -104,35 +94,35 @@ then
 	echo "$? is the return code for instance termination. It should be 0."
 	sleep 60
 	# this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
-	if [ $rollback_sg = 1 ]
+	if [ "$rollback_sg" = "1" ]
 	then
 		# delete the sg and key (if created).
-		aws ec2 delete-security-group --group-name $USER_EC2_BACKUP_group >/dev/null 2>&1
+		aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group" >/dev/null 2>&1
 		echo "$? is the return code for security-group deletion. It should be 0."
 	fi
-	if [ $rollback_key = 1 ]
+	if [ "$rollback_key" = "1" ]
 	then
-		aws ec2 delete-key-pair --key-name $key >/dev/null 2>&1
+		aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
 		echo "$? is the return code for key deletion from EC2."
-		rm -f $key_file
+		rm -f "$key".pem
 		echo "$? is the return code for key deletion locally."
 	fi
 else		
 	# we are here for cleanup post a successful backup session.
-	aws ec2 terminate-instances --instance-id $instance_id > /dev/null
+	aws ec2 terminate-instances --instance-id "$instance_id" > /dev/null
 	echo "$? is the return code for instance termination. It should be 0."
 	sleep 60
 	# this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
-	if [ $rollback_sg = 1 ]
+	if [ "$rollback_sg" = "1" ]
 	then
-		aws ec2 delete-security-group --group-name $USER_EC2_BACKUP_group >/dev/null 2>&1
+		aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group" >/dev/null 2>&1
 		echo "$? is the return code for security-group deletion. It should be 0."
 	fi
-	if [ $rollback_key = 1 ]
+	if [ "$rollback_key" = "1" ]
 	then
-		aws ec2 delete-key-pair --key-name $key >/dev/null 2>&1
+		aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
 		echo "$? is the return code for key deletion from EC2. It should be 0."
-		rm -f $key_file
+		rm -f $key.pem
 		echo "$? is the return code for key deletion locally. It should be 0."
 	fi
 fi
@@ -145,19 +135,19 @@ aws ec2 terminate-instances --instance-id $instance_id > /dev/null
 echo "$? is the return code for instance termination. It should be 0."
 sleep 60
 # this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
-if [ $rollback_sg = 1 ]
+if [ "$rollback_sg" = 1 ]
 then
-	aws ec2 delete-security-group --group-name $USER_EC2_BACKUP_group >/dev/null 2>&1
+	aws ec2 delete-security-group --group-name $USER-EC2-BACKUP-group >/dev/null 2>&1
 	echo "$? is the return code for security-group deletion. It should be 0."
 fi
-if [ $rollback_key = 1 ]
+if [ "$rollback_key" = 1 ]
 then
 	aws ec2 delete-key-pair --key-name $key >/dev/null 2>&1
 	echo "$? is the return code for key deletion from EC2. It should be 0."
-	rm -f $key_file
+	rm -f $key.pem
 	echo "$? is the return code for key deletion locally. It should be 0."
 fi
-if [ $rollback_vol = 1 ]
+if [ "$rollback_vol" = 1 ]
 then
 	aws ec2 delete-volume --volume-id "$volume_id" >/dev/null 2>&1
 	echo "$? is the return code for tool-created volume deletion. It should be 0."
@@ -201,7 +191,7 @@ then
 	echo "No directory specified"
 	usage
 	exit 1
-elif [ -d "$dir_to_backup" ] && [ "$dir_to_backup" != "/" ]
+elif [ ! -d "$dir_to_backup" ] #&& [ "$dir_to_backup" != "/" ]
 then
 	echo "$dir_to_backup is not an existing directory"
 	exit 1
@@ -210,17 +200,17 @@ fi
 ###### Determine backup volume size if a volume was not specified. ######
 if [ -z "$volume_id" ]
 then
-	backup_volume_size=$(du -s "$dir_to_backup" 2>/dev/null | cut -f1)
-	backup_volume_size='expr $backup_volume_size * 2'
-	backup_volume_size='expr $backup_volume_size / 1024'
-	backup_volume_size='expr $backup_volume_size / 1024'
-	backup_volume_size='expr $backup_volume_size + 2'
+	backup_volume_size=`du -s $dir_to_backup 2>/dev/null | cut -f1`
+	backup_volume_size=`echo $(($backup_volume_size * 2))`
+	backup_volume_size=`echo $(($backup_volume_size / 1024))`
+	backup_volume_size=`echo $(($backup_volume_size / 1024))`
+	backup_volume_size=`echo $(($backup_volume_size + 2))`
 fi
 
 ###### Print out parameter settings if verbose option set ######
 if $EC2_BACKUP_VERBOSE
 then
-	printf "\nEC2-BACKUP has been invoked with the following options:"
+	printf "\n\nEC2-BACKUP has been invoked with the following options:\n"
 	echo "Directory to backup = $dir_to_backup"
 
 	if [ -z "$method" ]
@@ -242,24 +232,24 @@ fi
 ###### Check value of the EC2_BACKUP_FLAGS_SSH environment variable. If the flag is not set create a keypair ######
 if [ -z "$EC2_BACKUP_FLAGS_SSH" ]
 then
-	user_provided_ssh=0
-	key="$USER-EC2-BACKUP-key"
-	key_file="$USER-EC2-BACKUP-key"
-	aws ec2 create-key-pair --key-name $key --query 'KeyMaterial' --output text > "$USER-EC2-BACKUP-key" >/dev/null 2>&1 && chmod 400 "$USER-EC2-BACKUP-key"
-	if [ $? != 0 ]
+	aws ec2 create-key-pair --key-name "$USER-EC2-BACKUP-key" --query 'KeyMaterial' --output text > "$USER-EC2-BACKUP-key".pem && chmod 400 "$USER-EC2-BACKUP-key".pem >/dev/null 2>&1
+	if [ $(echo $?) != 0 ]
 	then
 		rollback_key=0
-		echo "Key is already existing. Edit the script for compatibility or remove that key from EC2, please."
+		echo "key is already existing. Edit the script for compatibility or remove that key from EC2, please."
 		exit 1
 	else
 		rollback_key=1
-		echo "key created"
+		echo "key created"	
+		echo "the key material is this:"
+		cat $USER-EC2-BACKUP-key.pem
+		key="$USER-EC2-BACKUP-key"; echo $?
 	fi
 else
 	rollback_key=0
 	# If the key flag was set, check if the identity_file flag is set
 	flag=$(echo "$EC2_BACKUP_FLAGS_SSH" | cut -d " " -f1) 
-	key_file=$(echo "$EC2_BACKUP_FLAGS_SSH" | cut -d " " -f2)
+	key=$(echo "$EC2_BACKUP_FLAGS_SSH" | cut -d " " -f2)
 	if [ "$flag" != -i ]
 	then
 		echo "EC2_BACKUP_FLAGS_SSH must set the identity file flag. Any other flags are not supported."
@@ -267,20 +257,10 @@ else
 	fi
 
 	# Check if the keyfile is valid
-	if [ -e "$key_file" ] 
+	if [ -e "$key" ] 
 	then
 		echo "EC2_BACKUP_FLAGS_SSH environment variable set with an invalid or non-readable keyfile"
 		exit 1
-	fi
-
-	# Check if the user set the key name in EC2_BACKUP_FLAGS_AWS
-	EC2_BACKUP_FLAGS_AWS="--instance-type t1.micro --key-name keyname"
-	key_name_check=$(echo $EC2_BACKUP_FLAGS_AWS | grep -e "--key-name")
-	errorcheck=$(echo $?)
-	if [ "$errorcheck" != 0 ]
-	then
-		echo "User must provide the AWS key pair name in EC2_BACKUP_FLAGS_AWS when providing a key_file in EC2_BACKUP_FLAGS_SSH"
-		echo "Please change EC2_BACKUP_FLAGS_AWS to provide the --key-name flag, or do not provide a specified keyfile for SSH"
 	fi
 
 	# If verbose option is set dusplay flag info
@@ -288,36 +268,34 @@ else
 	then
 		echo "\nEC2_BACKUP_FLAGS_AWS: $EC2_BACKUP_FLAGS_AWS"
 			 "EC2_BACKUP_FLAGS_SSH: $EC2_BACKUP_FLAGS_SSH"
-		echo "Keyfile found at $key_file"
+		echo "keyfile found at $key"
 	fi
-	user_provided_ssh=1
 fi
 
 ###### Create security group ######
-aws ec2 create-security-group --group-name '$USER_EC2_BACKUP_group' --description "EC2-BACKUP-tool" 1>/dev/null 2>/dev/null
-errorcheck=$(echo $?)
-if [ "$errorcheck" != 0 ]
+aws ec2 create-security-group --group-name "$USER-EC2-BACKUP-group" --description "EC2-BACKUP-tool" >/dev/null 2>&1
+if [ $? != "0" ]
 then
 	rollback_sg=0
-	echo "Error creating the security group with name $USER_EC2_BACKUP_group."
-	if [ $rollback_key == "1" ]
+	echo "Error creating the security group with name $USER-EC2-BACKUP-group"
+	if [ "$rollback_key" = "1" ]
 	then
-		aws ec2 delete-key-pair --key-name $key >/dev/null 2>&1
+		aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
 		echo "$? is the return code for key deletion from EC2."
-		rm -f $key_file
+		rm -f $key.pem
 		echo "$? is the return code for key deletion locally."
 	fi
 	exit 1
 else
 	rollback_sg=1
-	aws ec2 authorize-security-group-ingress --group-name "$USER_EC2_BACKUP_group" --port 22 --protocol tcp --cidr 0.0.0.0/0 1>/dev/null 2>/dev/null
+	aws ec2 authorize-security-group-ingress --group-name "$USER-EC2-BACKUP-group" --port 22 --protocol tcp --cidr 0.0.0.0/0 >/dev/null 2>&1
 fi
 
 # Verbose print sg info
 if $EC2_BACKUP_VERBOSE
 then
 	printf "\nCreated security group"
-	echo "Group name: $USER_EC2_BACKUP_group"	
+	echo "Group name: $USER-EC2-BACKUP-group"	
 	echo "	Port: 22"
 	echo "	Protocol: TCP"
 	echo "	CIDR IP range: 0.0.0.0/0"
@@ -325,80 +303,181 @@ fi
 
 ###### Instance creation & volume creation (if not provided) ######
 
-if [ $method = "dd" ]
+if $EC2_BACKUP_VERBOSE
 then
-	if [ -z "$volume_id" ]
+	if [ "$method" = "dd" ] || [ -z "$method" ]
 	then
-		rollback_vol=1
-		create_dd_instance
-		sleep 225
-		volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
-		sleep 30
-		aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
-		sleep 30 # necessary to make the volume accessible post attachment.
-		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
-		ssh -o StrictHostKeyChecking=no -i $key_file root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+		#### verbose starts ####
+		if [ -z "$volume_id" ]
+		then
+			rollback_vol=1
+			echo "$key is my key"
+			echo "$key.pem is my key"
+			
+			create_dd_instance
+			sleep 225
+			volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
+			echo "$volume_id is ID of the newly volume ($availability_zone is the zone)."
+			sleep 45
+			aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+			echo "Created volume is now attached to the instance with id $instance_id"
+			sleep 45 # necessary to make the volume accessible post attachment.
+			public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+			echo "$public_ip is the ip"
+			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin mount /dev/xbd3a /mnt/mount_point" 2>/dev/null
+			echo "Backup volume filesystem: Unix FFS"
+		else
+			avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
+			create_dd_instance
+			sleep 225
+			aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf 2>/dev/null
+			echo "Volume is now attached to the instance with id $instance_id"
+			sleep 45 # necessary to make the volume accessible post attachment.
+			public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+			fs_check=$(ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "file -s /dev/xbd3a" | cut -d ' ' -f2)
+			if [ "$fs_check" = "data" ]
+			then
+				echo "The volume is raw. Moving forward to create a filesystem."
+				ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+		
+			else
+				echo "The volume is not raw. Hoping it to be a supported one."
+				ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+				if [ $(echo $?) != 0 ]
+				then
+					echo "Unsupported filesystem is present on the volume. Rolling back and exiting..."
+					delete_instance_key_group
+					exit 1
+				fi
+			fi
+		fi
 	else
-		avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
-		create_dd_instance
-		sleep 225
-		aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
-		sleep 30 # necessary to make the volume accessible post attachment.
-		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
-		ssh -o StrictHostKeyChecking=no -i $key_file root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
-	fi
-elif [ $method = "rsync" ]
-then
-	if [ -z "$volume_id" ]
+		#### verbose ends ####
+		#### verbose starts ####
+		if [ "$method" = "rsync" ]
+		then
+			if [ -z "$volume_id" ]
+			then
+				echo "$volume_id is the current volume_id. Empty."
+				rollback_vol=1
+				create_rsync_instance
+				echo "done creating the instance"
+				sleep 225
+				volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
+				sleep 45
+				aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+				sleep 45 # necessary to make the volume accessible post attachment.
+				public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+				back_vol=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
+				ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+			else
+				avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
+				create_rsync_instance
+				sleep 225
+				aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+				sleep 45 # necessary to make the volume accessible post attachment.
+				public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+				back_vol=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
+				fs_check=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo file -s /dev/xvdf" | cut -d ' ' -f2)
+				if [ "$fs_check" = "data" ]
+				then
+					ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+				else
+					ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+				fi
+			fi
+		fi
+	fi	#### verbose ends ####
+else
+		#### non-verbose part ####
+	if [ -z "$method" ] || [ "$method" = "dd" ]
 	then
-		rollback_vol=1
-		create_rsync_instance
-		sleep 225
-		volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
-		sleep 30
-		aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
-		sleep 30 # necessary to make the volume accessible post attachment.
-		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
-		back_vol=$(ssh -o StrictHostKeyChecking=no -i $key_file ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
-		ssh -o StrictHostKeyChecking=no -i $key_file ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+		if [ -z "$volume_id" ]
+		then
+			rollback_vol=1
+			create_dd_instance
+			sleep 225
+			volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 -availability-zone $availability_zone | egrep -o 'vol-.{8}')
+			sleep 45
+			aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+			sleep 45 # necessary to make the volume accessible post attachment.
+			public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+		else
+			avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
+			create_dd_instance
+			sleep 225
+			aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+			sleep 45 # necessary to make the volume accessible post attachment.
+			public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+			fs_check=$(ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "file -s /dev/xbd3a" | cut -d ' ' -f2)
+			if [ "$fs_check" = "data" ]
+			then
+				ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+		
+			else
+				ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"	
+			fi
+		fi
 	else
-		avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
-		create_dd_instance
-		sleep 225
-		aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
-		sleep 30 # necessary to make the volume accessible post attachment.
-		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
-		back_vol=$(ssh -o StrictHostKeyChecking=no -i $key_file ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
-		ssh -o StrictHostKeyChecking=no -i $key_file ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+		if [ "$method" = "rsync" ]
+		then
+			if [ -z "$volume_id" ]
+			then
+				rollback_vol=1
+				create_rsync_instance
+				sleep 225
+				volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
+				sleep 45
+				aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+				sleep 45 # necessary to make the volume accessible post attachment.
+				public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+				back_vol=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
+				ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+			else
+				avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
+				create_dd_instance
+				sleep 225
+				aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
+				sleep 45 # necessary to make the volume accessible post attachment.
+				public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+				back_vol=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
+				fs_check=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo file -s /dev/xvdf" | cut -d ' ' -f2)
+				if [ "$fs_check" = "data" ]
+				then
+					ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+				else
+					ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+				fi
+			fi
+		fi
 	fi
 fi
-
-
 ###### Backup Method = dd ######
 
-if [ $method = "dd" -o -z "$method" ]
+if [ -z "$method" ] || [ "$method" = "dd" ]
 then
 	if $EC2_BACKUP_VERBOSE
 	then
-		tar zvcf - $dir_to_backup | ssh -o StrictHostKeyChecking=no -i $key_file root@$public_ip "dd of=/mnt/mount_point/tarfile" 2>/dev/null
-		errorcheck=$(echo $?)
-		if [ "$errorcheck" != 0 ]
+		tar zvcf - $dir_to_backup | ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "dd of=/mnt/mount_point/tarfile" 2>/dev/null
+		if [ $(echo $?) != 0 ]
 		then
 			delete_instance_key_group_volume
 			exit 1
 		else
-			ssh -o StrictHostKeyChecking=no -i $key_file root@$public_ip "/sbin/umount -f /mnt/mount_point"	
+			echo "done backup"
+			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"	
+			echo "unmounted"
 	    fi
 	else
-		tar zcf - $dir_to_backup | ssh -o StrictHostKeyChecking=no -i $key_file root@$public_ip "dd of=/mnt/mount_point/tarfile" >/dev/null 2>&1
-		errorcheck=$(echo $?)
-		if [ "$errorcheck" != 0 ]
+		tar zcf - $dir_to_backup | ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "dd of=/mnt/mount_point/tarfile" >/dev/null 2>&1
+		if [ $(echo $?) != 0 ]
 		then
 			delete_instance_key_group_volume
 			exit 1
 		else
-			ssh -o StrictHostKeyChecking=no -i $key_file root@$public_ip "/sbin/umount -f /mnt/mount_point"
-		fi
+			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
+	    fi
 	fi
 fi
 #echo "Backup finished without any error(s). Backup volume has the volume-id $volume_id"
@@ -409,43 +488,37 @@ fi
 #exit 0
 
 ###### Backup Method = rsync ######
-if [ $method = "rsync" ]
+if [ "$method" = "rsync" ]
 then
 	if $EC2_BACKUP_VERBOSE
 	then
-		rsync -avzre "ssh -o StrictHostKeyChecking=no -i $key_file" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir &>/dev/null
-		errorcheck=$(echo $?)
-		if [ "$errorcheck" != "0" ]
+		rsync -avzre "ssh -o StrictHostkeyChecking=no -i $key.pem" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir >/dev/null 2>&1
+		if [ $(echo $?) != 0 ]
 		then
 			delete_instance_key_group_volume
 			exit 1
 		else
-			ssh -o StrictHostKeyChecking=no -i $key_file root@$public_ip "/bin/umount -f /mnt/backupdir"	
+			ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/umount -f /mnt/backupdir"	
 	    fi
 	else
-		rsync -avzroe "ssh -o StrictHostKeyChecking=no -i $key_file" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir >/dev/null 2>&1
-		errorcheck=$(echo $?)
-		if [ "$errorcheck" != 0 ]
+		rsync -avzroe "ssh -o StrictHostkeyChecking=no -i $key.pem" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir >/dev/null 2>&1
+		if [ $(echo $?) != 0 ]
 		then
 			delete_instance_key_group_volume
 			exit 1
 		else
-			ssh -o StrictHostKeyChecking=no -i $key_file root@$public_ip "/bin/umount -f /mnt/backupdir"
+			ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/umount -f /mnt/backupdir"
 	    fi
 	fi    
 fi
 
 ###### Clean up and exit ######
-#aws ec2 delete-security-group --group-name "$USER_EC2_BACKUP_group" >/dev/null 2>&1
+#aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group" >/dev/null 2>&1
 #aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
-if $EC2_BACKUP_VERBOSE
-then
-	echo "Backup finished without any error(s). Backup volume has the volume-id $volume_id"
-	echo "Deleting the intermediate creation(s) (security group and/or key)."
-	echo "It will take upto 60 seconds. Started..."
-fi
-
+echo "Backup finished without any error(s). Backup volume has the volume-id $volume_id"
+echo "Deleting the intermediate creation(s) (security group and/or key)."
+echo "It will take upto 60 seconds. Started..."
 delete_instance_key_group
-echo "$volume_id"
+echo "Bbye."
 
 exit 0
