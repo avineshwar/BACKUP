@@ -128,7 +128,7 @@ then
 	rm -f $key.pem
 	echo "$? is the return code for key deletion locally. It should be 0."
 fi
-if [ "$rollback_vol" == 1]
+if [ "$rollback_vol" == 1 ]
 then
 	aws ec2 delete-volume --volume-id "$volume_id" >/dev/null 2>&1
 	echo "$? is the return code for tool-created volume deletion. It should be 0."
@@ -303,7 +303,9 @@ then
 		sleep 30 # necessary to make the volume accessible post attachment.
 		public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
 		ssh -o StrictHostKeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+	fi
 else
+	true
 	## details for rsync's instance and volumes.
 fi
 
