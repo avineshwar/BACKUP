@@ -564,7 +564,7 @@ then
 			ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/umount -f /mnt/backupdir"	
 	    fi
 	else
-		rsync -avzroe "ssh -o StrictHostkeyChecking=no -i $key.pem" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir >/dev/null 2>&1
+		rsync -avzre "ssh -o StrictHostkeyChecking=no -i $key.pem" --rsync-path="sudo rsync" $dir_to_backup ec2-user@$public_ip:/mnt/backupdir >/dev/null 2>&1
 		if [ $(echo $?) != 0 ]
 		then
 			delete_instance_key_group_volume
