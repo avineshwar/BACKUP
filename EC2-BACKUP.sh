@@ -49,7 +49,11 @@ checkvolume () {
 
 ###### creates an instance for dd ######
 create_dd_instance () {
-echo "creating instance "
+if $EC2_BACKUP_VERBOSE
+then
+	echo "creating instance "
+fi
+
 # "ami-569ed93c" is the AMI-ID for NetBSD.
 aws ec2 run-instances --image-id ami-569ed93c --key-name "$key" --security-groups "$USER-EC2-BACKUP-group" --count 1 "$EC2_BACKUP_FLAGS_AWS" > tee
 availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
@@ -60,19 +64,21 @@ then
 	delete_instance_key_group
 	exit 1	
 fi
-echo "creating instance exiting "
+
 }
 
 ###### creates an instance for rsync ######
 create_rsync_instance () {
+if $EC2_BACKUP_VERBOSE
+then
+	echo "creating instance"
+fi
+
 # "ami-22111148" is the AMI-ID for Amazon Linux.
 aws ec2 run-instances --image-id ami-22111148 --key-name "$key" --security-groups "$USER-EC2-BACKUP-group" --count 1 "$EC2_BACKUP_FLAGS_AWS" > tee
-echo "created rsync instance"
 availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
 instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
-echo "done"
-echo "$instance_id"
-echo "$availability_zone"
+
 if [ "$avail_zone_of_user_vol" != "$availability_zone" ] && [ "$rollback_vol" != "1" ]
 then
 	error_differentiator=1
@@ -132,25 +138,42 @@ fi
 
 delete_instance_key_group_volume () {
 aws ec2 terminate-instances --instance-id $instance_id > /dev/null
-echo "$? is the return code for instance termination. It should be 0."
+
+if $EC2_BACKUP_VERBOSE
+then
+	echo "$? is the return code for instance termination. It should be 0."
+fi
+
 sleep 60
 # this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
 if [ "$rollback_sg" = 1 ]
 then
 	aws ec2 delete-security-group --group-name $USER-EC2-BACKUP-group >/dev/null 2>&1
-	echo "$? is the return code for security-group deletion. It should be 0."
+	if $EC2_BACKUP_VERBOSE
+	then
+		echo "$? is the return code for instance termination. It should be 0."
+	fi
 fi
 if [ "$rollback_key" = 1 ]
 then
 	aws ec2 delete-key-pair --key-name $key >/dev/null 2>&1
-	echo "$? is the return code for key deletion from EC2. It should be 0."
+	if $EC2_BACKUP_VERBOSE
+	then
+		echo "$? is the return code for key pair deletion. It should be 0."
+	fi
 	rm -f $key.pem
-	echo "$? is the return code for key deletion locally. It should be 0."
+	if $EC2_BACKUP_VERBOSE
+	then
+		echo "$? is the return code for key deletion locally. It should be 0."
+	fi
 fi
 if [ "$rollback_vol" = 1 ]
 then
 	aws ec2 delete-volume --volume-id "$volume_id" >/dev/null 2>&1
-	echo "$? is the return code for tool-created volume deletion. It should be 0."
+	if $EC2_BACKUP_VERBOSE
+	then
+		echo "$? is the return code for tool-created volume deletion. It should be 0."
+	fi
 fi
 }
 
@@ -352,21 +375,39 @@ then
 			fi
 		fi
 	else
-		#### verbose ends ####
-		#### verbose starts ####
 		if [ "$method" = "rsync" ]
 		then
 			if [ -z "$volume_id" ]
 			then
-				echo "$volume_id is the current volume_id. Empty."
 				rollback_vol=1
 				create_rsync_instance
 				echo "done creating the instance"
-				sleep 225
+				
+				# Wait loop for instance spooling
+				while [ "$state" != "running" ]  
+				do
+					if $EC2_BACKUP_VERBOSE
+					then
+						echo "Booting instance '$instance_id' for backup"
+					fi
+					state="$(aws ec2 describe-instances --instance-id $instance_id | grep STATE | cut -f3)"
+				done
+
 				volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
 				sleep 45
 				aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
-				sleep 45 # necessary to make the volume accessible post attachment.
+				
+				# Enter wait loop while volume is attaching
+				state=''
+				while [ "$state" != "attached" ]  
+				do
+					if $EC2_BACKUP_VERBOSE
+					then
+						echo "Attaching '$volume' to '$instance_id'"
+					fi
+					state="$(aws ec2 describe-volumes --volume-id $volume | grep ATTACHMENTS | cut -f6)"
+				done
+
 				public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
 				back_vol=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
 				ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
@@ -396,11 +437,33 @@ else
 		then
 			rollback_vol=1
 			create_dd_instance
-			sleep 225
+			state=''
+
+			# Wait loop for instance spooling
+			while [ "$state" != "running" ]  
+			do
+				if $EC2_BACKUP_VERBOSE
+				then
+					echo "Booting instance $instance_id for backup"
+				fi
+				state="$(aws ec2 describe-instances --instance-id $instance_id | grep STATE | cut -f3)"
+			done
+
 			volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 -availability-zone $availability_zone | egrep -o 'vol-.{8}')
 			sleep 45
 			aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
-			sleep 45 # necessary to make the volume accessible post attachment.
+			
+			# Enter wait loop while volume is attaching
+			state=''
+			while [ "$state" != "attached" ]  
+			do
+				if $EC2_BACKUP_VERBOSE
+				then
+					echo "Attaching $volume_id to $instance_id"
+				fi
+				state="$(aws ec2 describe-volumes --volume-id $volume | grep ATTACHMENTS | cut -f6)"
+			done
+
 			public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
 			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
 		else
@@ -515,10 +578,13 @@ fi
 ###### Clean up and exit ######
 #aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group" >/dev/null 2>&1
 #aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
-echo "Backup finished without any error(s). Backup volume has the volume-id $volume_id"
-echo "Deleting the intermediate creation(s) (security group and/or key)."
-echo "It will take upto 60 seconds. Started..."
+if $EC2_BACKUP_VERBOSE
+then
+	echo "Backup finished without any error(s). Backup volume has the volume-id $volume_id"
+	echo "Deleting the intermediate creation(s) (security group and/or key)."
+	echo "It will take upto 60 seconds. Started..."
+fi
 delete_instance_key_group
-echo "Bbye."
+echo "$volume_id"
 
 exit 0
