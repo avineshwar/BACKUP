@@ -1,13 +1,13 @@
 #!/bin/sh
 
 #===================================================================================#
-#	title          :EC2-BACKUP                              	            		#
-#	description    :Backs up a local directory to an AWS EC2 cloud volume	    	#
-#	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;       	#
-#	date           :20160410                                                    	#
-#	version        :0.1.0							    							#
-#										    										#	
-#	P.S. :: Alphabetical order naming system                                    	#
+#	title          :EC2-BACKUP                              	            #
+#	description    :Backs up a local directory to an AWS EC2 cloud volume	    #
+#	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;       #
+#	date           :20160410                                                    #
+#	version        :0.1.0							    #
+#										    #	
+#	P.S. :: Alphabetical order naming system                                    #
 #===================================================================================#
 
 ###### printhelp function prints the help page ######
@@ -40,7 +40,7 @@ checkvolume () {
 		echo "-v invoked with no parameter value"; usage; exit 1
 	fi
 	aws ec2 describe-volumes --volume-id "$volume_id" >/dev/null 2>&1
-    if [ $? != 0 ]
+    if [ $(echo $?) != 0 ]
     then
     	echo "$volume_id is not an existing volume"
     	exit 1
@@ -56,8 +56,8 @@ fi
 
 # "ami-569ed93c" is the AMI-ID for NetBSD.
 aws ec2 run-instances --image-id ami-569ed93c --key-name "$key" --security-groups "$USER-EC2-BACKUP-group" --count 1 "$EC2_BACKUP_FLAGS_AWS" > tee
-availability_zone=$(cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}')
-instance_id=$(cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}')
+availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
+instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
 if [ "$avail_zone_of_user_vol" != "$availability_zone" ] && [ "$rollback_vol" != "1" ]
 then
 	error_differentiator=1
@@ -76,8 +76,8 @@ fi
 
 # "ami-22111148" is the AMI-ID for Amazon Linux.
 aws ec2 run-instances --image-id ami-22111148 --key-name "$key" --security-groups "$USER-EC2-BACKUP-group" --count 1 "$EC2_BACKUP_FLAGS_AWS" > tee
-availability_zone=$(cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}')
-instance_id=$(cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}')
+availability_zone=`cat tee | egrep -o 'us-.{6,7}|eu-.{6,10}|ap-.{11,12}|sa-.{6,7}'`
+instance_id=`cat tee | egrep -o '\Wi-.{8}' | egrep -o 'i-.{8}'`
 
 if [ "$avail_zone_of_user_vol" != "$availability_zone" ] && [ "$rollback_vol" != "1" ]
 then
@@ -96,7 +96,7 @@ then
 	echo "Roll back will take 60 seconds."
 	echo "$availability_zone was the availability zone of the instance."
 	echo "$avail_zone_of_user_vol is the availability zone of the volume."
-	aws ec2 terminate-instances --instance-id "$instance_id" > /dev/null
+	aws ec2 terminate-instances --instance-id $instance_id > /dev/null
 	echo "$? is the return code for instance termination. It should be 0."
 	sleep 60
 	# this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
@@ -128,7 +128,7 @@ else
 	then
 		aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
 		echo "$? is the return code for key deletion from EC2. It should be 0."
-		rm -f "$key".pem
+		rm -f $key.pem
 		echo "$? is the return code for key deletion locally. It should be 0."
 	fi
 fi
@@ -137,7 +137,7 @@ fi
 ###### Rollbacker (with volume deletion for failures during backup) ######
 
 delete_instance_key_group_volume () {
-aws ec2 terminate-instances --instance-id "$instance_id" >/dev/null
+aws ec2 terminate-instances --instance-id $instance_id >/dev/null
 
 if $EC2_BACKUP_VERBOSE
 then
@@ -148,7 +148,7 @@ sleep 60
 # this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
 if [ "$rollback_sg" = 1 ]
 then
-	aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group" >/dev/null 2>&1
+	aws ec2 delete-security-group --group-name $USER-EC2-BACKUP-group >/dev/null 2>&1
 	if $EC2_BACKUP_VERBOSE
 	then
 		echo "$? is the return code for instance termination. It should be 0."
@@ -156,12 +156,12 @@ then
 fi
 if [ "$rollback_key" = "1" ]
 then
-	aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
+	aws ec2 delete-key-pair --key-name $key >/dev/null 2>&1
 	if $EC2_BACKUP_VERBOSE
 	then
 		echo "$? is the return code for key pair deletion. It should be 0."
 	fi
-	rm -f "$key".pem
+	rm -f $key.pem
 	if $EC2_BACKUP_VERBOSE
 	then
 		echo "$? is the return code for key deletion locally. It should be 0."
@@ -181,29 +181,15 @@ fi
 while [ $# -gt 0 ] 
 do
 	case $1 in
-		-h) printhelp
-		    exit 0
-		;;
+		-h) printhelp;;
 		-m) 
 			case $2 in
-			dd) method="$2"
-			shift
-			shift
-			;;
-			rsync) method="$2"
-			shift
-			shift
+			dd) method="$2"; shift; shift;;
+			rsync) method="$2"; shift; shift;;
+			-*) echo "-m invoked with no parameter value"; usage; exit 1;;
+			*) 	echo "Bad argument -m method \n Valid options are dd or rsync.\n" usage; exit 1;;
 			esac
 			;;
-			-*) echo "-m invoked with no parameter value"
-			usage
-			exit 1
-			;;
-			*) printf "Bad argument -m method \n Valid options are dd or rsync.\n"
-			usage
-			exit 1
-	        ;;
-			
 		-v) 
 			case $2 in
 			-*) echo "-v invoked with no parameter value"; usage; exit 1;;
@@ -219,7 +205,7 @@ do
 		 		dir_to_backup=$1; shift
 		 	fi
 		 	;;
-    esac
+	esac
 done
 
 ###### Check if directory to backup is a valid directory ######
@@ -270,7 +256,7 @@ fi
 if [ -z "$EC2_BACKUP_FLAGS_SSH" ]
 then
 	aws ec2 create-key-pair --key-name "$USER-EC2-BACKUP-key" --query 'KeyMaterial' --output text > "$USER-EC2-BACKUP-key".pem && chmod 400 "$USER-EC2-BACKUP-key".pem >/dev/null 2>&1
-	if [ $? != 0 ]
+	if [ $(echo $?) != 0 ]
 	then
 		rollback_key=0
 		echo "key is already existing. Edit the script for compatibility or remove that key from EC2, please."
@@ -279,7 +265,7 @@ then
 		rollback_key=1
 		echo "key created"	
 		echo "the key material is this:"
-		cat "$USER-EC2-BACKUP-key".pem
+		cat $USER-EC2-BACKUP-key.pem
 		key="$USER-EC2-BACKUP-key"; echo $?
 	fi
 else
@@ -319,7 +305,7 @@ then
 	then
 		aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
 		echo "$? is the return code for key deletion from EC2."
-		rm -f "$key".pem
+		rm -f $key.pem
 		echo "$? is the return code for key deletion locally."
 	fi
 	exit 1
@@ -353,34 +339,34 @@ then
 			
 			create_dd_instance
 			sleep 225
-			volume_id=$(aws ec2 create-volume --size "$backup_volume_size" --volume-type gp2 --availability-zone "$availability_zone" | egrep -o 'vol-.{8}')
+			volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
 			echo "$volume_id is ID of the newly volume ($availability_zone is the zone)."
 			sleep 45
-			aws ec2 attach-volume --volume-id "$volume_id" --instance-id "$instance_id" --device /dev/sdf >/dev/null
+			aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
 			echo "Created volume is now attached to the instance with id $instance_id"
 			sleep 45 # necessary to make the volume accessible post attachment.
-			public_ip=$(aws ec2 describe-instances --output text | egrep "$instance_id" | cut -f16)
+			public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
 			echo "$public_ip is the ip"
-			ssh -o StrictHostkeyChecking=no -i "$key".pem root@"$public_ip" "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin mount /dev/xbd3a /mnt/mount_point" 2>/dev/null
+			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin mount /dev/xbd3a /mnt/mount_point" 2>/dev/null
 			echo "Backup volume filesystem: Unix FFS"
 		else
-			avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep "$volume_id" | cut -f2)
+			avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
 			create_dd_instance
 			sleep 225
-			aws ec2 attach-volume --volume-id "$volume_id" --instance-id "$instance_id" --device /dev/sdf 2>/dev/null
+			aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf 2>/dev/null
 			echo "Volume is now attached to the instance with id $instance_id"
 			sleep 45 # necessary to make the volume accessible post attachment.
-			public_ip=$(aws ec2 describe-instances --output text | egrep "$instance_id" | cut -f16)
-			fs_check=$(ssh -o StrictHostkeyChecking=no -i "$key".pem root@"$public_ip" "file -s /dev/xbd3a" | cut -d ' ' -f2)
+			public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+			fs_check=$(ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "file -s /dev/xbd3a" | cut -d ' ' -f2)
 			if [ "$fs_check" = "data" ]
 			then
 				echo "The volume is raw. Moving forward to create a filesystem."
-				ssh -o StrictHostkeyChecking=no -i "$key".pem root@"$public_ip" "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+				ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
 		
 			else
 				echo "The volume is not raw. Hoping it to be a supported one."
-				ssh -o StrictHostkeyChecking=no -i "$key".pem root@"$public_ip" "mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
-				if [ $? != 0 ]
+				ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+				if [ $(echo $?) != 0 ]
 				then
 					echo "Unsupported filesystem is present on the volume. Rolling back and exiting..."
 					delete_instance_key_group
@@ -405,12 +391,12 @@ then
 						echo "Booting instance $instance_id for backup"
 						sleep 5
 					fi
-					state="$(aws ec2 describe-instances --instance-id "$instance_id" | grep STATE | cut -f3)"
+					state="$(aws ec2 describe-instances --instance-id $instance_id | grep STATE | cut -f3)"
 				done
 
-				volume_id=$(aws ec2 create-volume --size "$backup_volume_size" --volume-type gp2 --availability-zone "$availability_zone" | egrep -o 'vol-.{8}')
+				volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 --availability-zone $availability_zone | egrep -o 'vol-.{8}')
 				sleep 45
-				aws ec2 attach-volume --volume-id "$volume_id" --instance-id "$instance_id" --device /dev/sdf >/dev/null
+				aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
 				
 				# Enter wait loop while volume is attaching
 				state=''
@@ -418,28 +404,28 @@ then
 				do
 					if $EC2_BACKUP_VERBOSE
 					then
-						echo "Attaching $volume_id to $instance_id"
+						echo "Attaching $volume_idto $instance_id"
 					fi
-					state="$(aws ec2 describe-volumes --volume-id "$volume_id" | grep ATTACHMENTS | cut -f6)"
+					state="$(aws ec2 describe-volumes --volume-id $volume_id| grep ATTACHMENTS | cut -f6)"
 				done
 
-				public_ip=$(aws ec2 describe-instances --output text | egrep "$instance_id" | cut -f16)
-				back_vol=$(ssh -o StrictHostkeyChecking=no -i "$key".pem ec2-user@"$public_ip" "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
-				ssh -o StrictHostkeyChecking=no -i "$key".pem ec2-user@"$public_ip" "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+				public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+				back_vol=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
+				ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
 			else
-				avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep "$volume_id" | cut -f2)
+				avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
 				create_rsync_instance
 				sleep 225
-				aws ec2 attach-volume --volume-id "$volume_id" --instance-id "$instance_id" --device /dev/sdf >/dev/null
+				aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
 				sleep 45 # necessary to make the volume accessible post attachment.
-				public_ip=$(aws ec2 describe-instances --output text | egrep "$instance_id" | cut -f16)
-				back_vol=$(ssh -o StrictHostkeyChecking=no -i "$key".pem ec2-user@"$public_ip" "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
-				fs_check=$(ssh -o StrictHostkeyChecking=no -i "$key".pem ec2-user@"$public_ip" "sudo file -s /dev/xvdf" | cut -d ' ' -f2)
+				public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
+				back_vol=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "/bin/dmesg|grep xvdf|grep 3156|cut -c 29-32")
+				fs_check=$(ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo file -s /dev/xvdf" | cut -d ' ' -f2)
 				if [ "$fs_check" = "data" ]
 				then
-					ssh -o StrictHostkeyChecking=no -i "$key".pem ec2-user@"$public_ip" "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+					ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkfs -t ext4 /dev/xvdf && sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
 				else
-					ssh -o StrictHostkeyChecking=no -i "$key".pem ec2-user@"$public_ip" "sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
+					ssh -o StrictHostkeyChecking=no -i $key.pem ec2-user@$public_ip "sudo mkdir /mnt/backupdir && sudo mount /dev/sdf /mnt/backupdir"
 				fi
 			fi
 		fi
@@ -462,12 +448,12 @@ else
 					echo "Booting instance $instance_id for backup"
 					sleep 5
 				fi
-				state="$(aws ec2 describe-instances --instance-id "$instance_id" | grep STATE | cut -f3)"
+				state="$(aws ec2 describe-instances --instance-id $instance_id | grep STATE | cut -f3)"
 			done
 
-			volume_id=$(aws ec2 create-volume --size "$backup_volume_size" --volume-type gp2 -availability-zone "$availability_zone" | egrep -o 'vol-.{8}')
+			volume_id=$(aws ec2 create-volume --size $backup_volume_size --volume-type gp2 -availability-zone $availability_zone | egrep -o 'vol-.{8}')
 			sleep 45
-			aws ec2 attach-volume --volume-id "$volume_id" --instance-id "$instance_id" --device /dev/sdf >/dev/null
+			aws ec2 attach-volume --volume-id $volume_id --instance-id $instance_id --device /dev/sdf >/dev/null
 			
 			# Enter wait loop while volume is attaching
 			state=''
