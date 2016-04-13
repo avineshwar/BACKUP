@@ -1,13 +1,13 @@
 #!/bin/sh
 
 #===================================================================================#
-#	title          :EC2-BACKUP   			                            #
-#	description    :Backs up a local directory to an AWS EC2 cloud volume	    #
-#	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;       #
-#	date           :20160410                                                    #
-#	version        :0.1.1							    #
-#										    #	
-#	P.S. :: Alphabetical order naming system                                    #
+#	title          :EC2-BACKUP   			                           	            #
+#	description    :Backs up a local directory to an AWS EC2 cloud volume	    	#
+#	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;       	#
+#	date           :20160410                                                    	#
+#	version        :0.1.1							    							#
+#										    										#	
+#	P.S. :: Alphabetical order naming system                                    	#
 #===================================================================================#
 
 ###### printhelp function prints the help page ######
@@ -96,14 +96,15 @@ then
 	echo "Roll back will take 60 seconds."
 	echo "$availability_zone was the availability zone of the instance."
 	echo "$avail_zone_of_user_vol is the availability zone of the volume."
-	aws ec2 terminate-instances --instance-id $instance_id > /dev/null
+	aws ec2 terminate-instances --instance-id "$instance_id" > /dev/null
 	echo "$? is the return code for instance termination. It should be 0."
 	sleep 60
 	# this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
 	if [ "$rollback_sg" = "1" ]
 	then
 		# delete the sg and key (if created).
-		aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group" >/dev/null 2>&1
+		aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group"
+		#>/dev/null 2>&1
 		echo "$? is the return code for security-group deletion. It should be 0."
 	fi
 	if [ "$rollback_key" = "1" ]
@@ -121,7 +122,8 @@ else
 	# this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
 	if [ "$rollback_sg" = "1" ]
 	then
-		aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group" >/dev/null 2>&1
+		aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group"
+		#>/dev/null 2>&1
 		echo "$? is the return code for security-group deletion. It should be 0."
 	fi
 	if [ "$rollback_key" = "1" ]
@@ -137,7 +139,7 @@ fi
 ###### Rollbacker (with volume deletion for failures during backup) ######
 
 delete_instance_key_group_volume () {
-aws ec2 terminate-instances --instance-id $instance_id >/dev/null
+aws ec2 terminate-instances --instance-id "$instance_id" >/dev/null
 
 if $EC2_BACKUP_VERBOSE
 then
@@ -148,20 +150,20 @@ sleep 60
 # this sleep is necessary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
 if [ "$rollback_sg" = 1 ]
 then
-	aws ec2 delete-security-group --group-name $USER-EC2-BACKUP-group >/dev/null 2>&1
+	aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group" >/dev/null 2>&1
 	if $EC2_BACKUP_VERBOSE
 	then
-		echo "$? is the return code for instance termination. It should be 0."
+		echo "$? is the return code for group deletion. It should be 0."
 	fi
 fi
 if [ "$rollback_key" = "1" ]
 then
-	aws ec2 delete-key-pair --key-name $key >/dev/null 2>&1
+	aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
 	if $EC2_BACKUP_VERBOSE
 	then
 		echo "$? is the return code for key pair deletion. It should be 0."
 	fi
-	rm -f $key.pem
+	rm -f "$key".pem
 	if $EC2_BACKUP_VERBOSE
 	then
 		echo "$? is the return code for key deletion locally. It should be 0."
@@ -304,6 +306,8 @@ if [ $? != "0" ]
 then
 	rollback_sg=0
 	echo "Error creating the security group with name $USER-EC2-BACKUP-group"
+	delete_instance_key_group
+	exit 1
 	if [ "$rollback_key" = "1" ]
 	then
 		aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
@@ -489,18 +493,19 @@ if [ -z "$method" ] || [ "$method" = "dd" ]
 then
 	if $EC2_BACKUP_VERBOSE
 	then
-		tar zvcf - $dir_to_backup | ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "dd of=/mnt/mount_point/tarfile" 2>/dev/null
+		tar zvcf - $dir_to_backup | ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "dd of=/mnt/mount_point/tarfile"
+		#2>/dev/null
 		if [ $(echo $?) != 0 ]
 		then
 			echo "dd was not 100% successful for the given path."
 			echo "Backup is done for accessible portions only (as the program was not invoked with administrative priviliges)."
 			echo "Please wait..."
-			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
+			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point/"
 			delete_instance_key_group
 			exit 1
 		else
 			echo "backup finished."
-			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"	
+			ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point/"	
 			echo "unmounted the volume."
 	    fi
 	else
