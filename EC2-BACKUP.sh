@@ -1,8 +1,8 @@
 #!/bin/sh
 
 #===================================================================================#
-#	title          :EC2-BACKUP	                           	            #
-#	description    :Backs up a local directory to an AWS EC2 cloud volume  	    #
+#	title          :EC2-BACKUP   			                            #
+#	description    :Backs up a local directory to an AWS EC2 cloud volume	    #
 #	authors        :Avineshwar Pratap Singh; Gregory Basile; Sonal Mehta;       #
 #	date           :20160410                                                    #
 #	version        :0.1.1							    #
@@ -255,6 +255,7 @@ fi
 ###### Check value of the EC2_BACKUP_FLAGS_SSH environment variable. If the flag is not set create a keypair ######
 if [ -z "$EC2_BACKUP_FLAGS_SSH" ]
 then
+	### MODIFY "$USER-EC2-BACKUP-key" TO SOMETHING ELSE HERE TO CREATE A KEY WITH A DIFFERENT NAME" ###
 	aws ec2 create-key-pair --key-name "$USER-EC2-BACKUP-key" --query 'KeyMaterial' --output text > "$USER-EC2-BACKUP-key".pem && chmod 400 "$USER-EC2-BACKUP-key".pem >/dev/null 2>&1
 	if [ $(echo $?) != 0 ]
 	then
@@ -264,9 +265,10 @@ then
 	else
 		rollback_key=1
 		echo "key created"	
-		echo "the key material is this:"
-		cat $USER-EC2-BACKUP-key.pem
-		key="$USER-EC2-BACKUP-key"; echo $?
+		#echo "the key material is this:"
+		#cat $USER-EC2-BACKUP-key.pem
+		key="$USER-EC2-BACKUP-key"
+		#; echo $?
 	fi
 else
 	rollback_key=0
@@ -296,6 +298,7 @@ else
 fi
 
 ###### Create security group ######
+### MODIFY "$USER-EC2-BACKUP-group" TO SOMETHING ELSE HERE TO CREATE A GROUP WITH A DIFFERENT NAME" ###
 aws ec2 create-security-group --group-name "$USER-EC2-BACKUP-group" --description "EC2-BACKUP-tool" >/dev/null 2>&1
 if [ $? != "0" ]
 then
