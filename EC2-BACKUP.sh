@@ -100,8 +100,6 @@ then
         echo "$? is the return code for instance termination. It should be 0."
         sleep_counter=1
         state=$(aws ec2 describe-instances --instance-id "$instance_id" | egrep "(\"Name\": \"\w+\")"|cut -d '"' -f4)
-        sleep 10
-        echo "current state is: "$state""
         instance_status_check="terminated"
         while [ "$state" != "$instance_status_check"]
         do
@@ -109,7 +107,9 @@ then
                 sleep 10
                 sleep_counter=$(( sleep_counter + 1 ))
         done
-        echo "slept for $sleep_counter times 10 seconds"
+		sleep_counter=$(( sleep_counter * 10 ))
+        echo "slept for "$sleep_counter" seconds"
+        echo "current state is: "$state""
         # sleep 160
         # this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
         if [ "$rollback_sg" = "1" ]
@@ -132,8 +132,6 @@ else
         echo "$? is the return code for instance termination. It should be 0."
         sleep_counter=1
         state=$(aws ec2 describe-instances --instance-id "$instance_id" | egrep "(\"Name\": \"\w+\")"|cut -d '"' -f4)
-        sleep 10
-        echo "current state is: "$state""
         instance_status_check="terminated"
         while [ "$state" != "$instance_status_check" ]
         do
@@ -141,8 +139,9 @@ else
                 sleep 10
                 sleep_counter=$(( sleep_counter + 1 ))
         done
-        echo "slept for $sleep_counter times 10 seconds"
-
+        sleep_counter=$(( sleep_counter * 10 ))
+        echo "slept for "$sleep_counter" seconds"
+        echo "current state is: "$state""
         # sleep 60
         # this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
         if [ "$rollback_sg" = "1" ]
@@ -162,7 +161,7 @@ fi
 }
 
 ###### Rollbacker (with volume deletion for failures during backup) ######
-
+# note being used for now.
 delete_instance_key_group_volume () {
 aws ec2 terminate-instances --instance-id "$instance_id" >/dev/null
 
