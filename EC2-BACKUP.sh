@@ -11,6 +11,15 @@
 #===================================================================================#
 
 ###### printhelp function prints the help page ######
+# Check for a volume's filesystem (when given as an argument) before moving ahead with the backup.
+# When a user gives a volume, give an advisory warning that the chosen method expects a certain filesystem to exist if the
+# volume is given by the user in advance. Also, suggest to exit the script (Ctrl+D or option-based) and restart it without any # volume argument specified.
+# Post enquiry, if the filesystem doesn't match some minimum filesystem requirement, rollback (or rearrange the script post
+# considering every possibility) and exit 1.
+# Improve the error messages to actually say specific error. To do that, consider more checks and use them to narrow down the
+# possibilities.
+
+###### printhelp function prints the help page ######
 printhelp() {
         echo "
      ec2-backup accepts the following command-line flags:
