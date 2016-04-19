@@ -108,6 +108,6 @@ HISTORY
      ec2-backup was originally assigned by Jan Schaumann
      <jschauma@cs.stevens.edu> as a homework assignment for the class "Aspects
      of System Administration" at Stevens Institute of Technology in the
-     Spring of 2011.
+     Spring of 2016.
 
 BSD				March 27, 2016				   BSD
