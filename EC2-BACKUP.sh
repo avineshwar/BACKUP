@@ -3,7 +3,7 @@
 #===================================================================================#
 #       title          :EC2-BACKUP                                                  #
 #       description    :Backs up a local directory to an AWS EC2 cloud volume       #
-#       authors        :Avineshwar Pratap Sing				            #
+#       authors        :Avineshwar; Greg; Sonal;			            #
 #       date           :20160410                                                    #
 #       version        :0.1.2                                                       #
 #                                                                                   #
