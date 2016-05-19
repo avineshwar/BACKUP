@@ -61,7 +61,8 @@ checkvolume () {
 create_dd_instance () {
 if $EC2_BACKUP_VERBOSE
 then
-        echo "creating instance "
+        echo $EC2_BACKUP_VERBOSE is the verbose flag.
+        echo "creating a NetBSD instance for dd-based backup..."
 fi
 
 # "ami-569ed93c" is the AMI-ID for NetBSD.
@@ -81,7 +82,7 @@ fi
 create_rsync_instance () {
 if $EC2_BACKUP_VERBOSE
 then
-        echo "creating instance"
+        echo "creating an Amazon-Linux instance for rsync-based backup..."
 fi
 
 # "ami-22111148" is the AMI-ID for Amazon Linux.
@@ -98,8 +99,9 @@ fi
 }
 
 ###### Rollbacker ######
-
 delete_instance_key_group () {
+if $EC2_BACKUP_VERBOSE
+then
 if [ "$error_differentiator" = "1" ]
 then
         echo "Error. Availability zones differ. Script is rolling back."
@@ -111,7 +113,7 @@ then
         sleep_counter=1
         state=$(aws ec2 describe-instances --instance-id "$instance_id" | egrep "(\"Name\": \"\w+\")"|cut -d '"' -f4)
         instance_status_check="terminated"
-        while [ "$state" != "$instance_status_check"]
+        while [ "$state" != "$instance_status_check" ]
         do
                 state=$(aws ec2 describe-instances --instance-id "$instance_id" | egrep "(\"Name\": \"\w+\")"|cut -d '"' -f4)
                 sleep 10
@@ -168,10 +170,65 @@ else
                 echo "$? is the return code for key deletion locally. It should be 0."
         fi
 fi
-}
 
+### non-verbose counterpart ###
+else
+if [ "$error_differentiator" = "1" ]
+then
+        aws ec2 terminate-instances --instance-id "$instance_id" > /dev/null
+        sleep_counter=1
+        state=$(aws ec2 describe-instances --instance-id "$instance_id" | egrep "(\"Name\": \"\w+\")"|cut -d '"' -f4)
+        instance_status_check="terminated"
+        while [ "$state" != "$instance_status_check" ]
+        do
+                state=$(aws ec2 describe-instances --instance-id "$instance_id" | egrep "(\"Name\": \"\w+\")"|cut -d '"' -f4)
+                sleep 10
+                sleep_counter=$(( sleep_counter + 1 ))
+        done
+		sleep_counter=$(( sleep_counter * 10 ))
+        # sleep 160
+        # this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
+        if [ "$rollback_sg" = "1" ]
+        then
+                # delete the sg and key (if created).
+                aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group"
+                #>/dev/null 2>&1
+        fi
+        if [ "$rollback_key" = "1" ]
+        then
+                aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
+                rm -f "$key".pem
+        fi
+else
+        # we are here for cleanup post a successful backup session.
+        aws ec2 terminate-instances --instance-id "$instance_id" >/dev/null
+        sleep_counter=1
+        state=$(aws ec2 describe-instances --instance-id "$instance_id" | egrep "(\"Name\": \"\w+\")"|cut -d '"' -f4)
+        instance_status_check="terminated"
+        while [ "$state" != "$instance_status_check" ]
+        do
+                state=$(aws ec2 describe-instances --instance-id "$instance_id" | egrep "(\"Name\": \"\w+\")"|cut -d '"' -f4)
+                sleep 10
+                sleep_counter=$(( sleep_counter + 1 ))
+        done
+        sleep_counter=$(( sleep_counter * 10 ))
+        # sleep 60
+        # this sleep is necesary for the security group to believe that the instance is gone for good (i.e., its status is terminated).
+        if [ "$rollback_sg" = "1" ]
+        then
+                aws ec2 delete-security-group --group-name "$USER-EC2-BACKUP-group"
+                #>/dev/null 2>&1
+        fi
+        if [ "$rollback_key" = "1" ]
+        then
+                aws ec2 delete-key-pair --key-name "$key" >/dev/null 2>&1
+                rm -f $key.pem
+        fi
+fi
+fi
+}
 ###### Rollbacker (with volume deletion for failures during backup) ######
-# note being used for now.
+# not being used for now.
 delete_instance_key_group_volume () {
 aws ec2 terminate-instances --instance-id "$instance_id" >/dev/null
 
@@ -358,11 +415,11 @@ fi
 # Verbose print sg info
 if $EC2_BACKUP_VERBOSE
 then
-        printf "\nCreated security group"
-        echo "Group name: $USER-EC2-BACKUP-group"
+        echo "Created security group"
+        echo "  Group name: $USER-EC2-BACKUP-group"
         echo "  Port: 22"
         echo "  Protocol: TCP"
-        echo "  CIDR IP range: 0.0.0.0/0"
+        echo "  CIDR IP range: 0.0.0.0/0" # it should be restricted only to the current public IP
 fi
 
 ###### Instance creation & volume creation (if not provided) ######
@@ -376,7 +433,6 @@ then
                 then
                         rollback_vol=1
                         echo "$key is my key"
-                        echo "$key.pem is my key"
 
                         create_dd_instance
                         sleep 225
@@ -387,9 +443,9 @@ then
                         echo "Created volume is now attached to the instance with id $instance_id"
                         sleep 45 # necessary to make the volume accessible post attachment.
                         public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
-                        echo "$public_ip is the ip"
-                        ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin mount /dev/xbd3a /mnt/mount_point" 2>/dev/null
-                        echo "Backup volume filesystem: Unix FFS"
+                        echo "$public_ip is the public IP address of the created instance."
+                        # ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin mount /dev/xbd3a /mnt/mount_point" 2>/dev/null
+                        # echo "Backup volume filesystem: Unix FFS"
                 else
                         avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
                         create_dd_instance
@@ -401,8 +457,8 @@ then
                         fs_check=$(ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "file -s /dev/xbd3a" | cut -d ' ' -f2)
                         if [ "$fs_check" = "data" ]
                         then
-                                echo "The volume is raw. Moving forward to create a filesystem."
-                                ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+                                echo "The volume is raw. Using it now."
+                                #ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
 
                         else
                                 echo "The volume is not raw. Hoping it to be a supported one."
@@ -470,7 +526,7 @@ else
                         sleep 45
 
                         public_ip=$(aws ec2 describe-instances --output text | egrep $instance_id | cut -f16)
-                        ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+                        #ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
                 else
                         avail_zone_of_user_vol=$(aws ec2 describe-volumes --output text | grep $volume_id | cut -f2)
                         create_dd_instance
@@ -481,10 +537,10 @@ else
                         fs_check=$(ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "file -s /dev/xbd3a" | cut -d ' ' -f2)
                         if [ "$fs_check" = "data" ]
                         then
-                                ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+                                echo # ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/newfs /dev/xbd3a && mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
 
                         else
-                                ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
+                                echo # ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "mkdir /mnt/mount_point && /sbin/mount /dev/xbd3a /mnt/mount_point"
                         fi
                 fi
         else
@@ -527,31 +583,31 @@ if [ -z "$method" ] || [ "$method" = "dd" ]
 then
         if $EC2_BACKUP_VERBOSE
         then
-                tar zvcf - $dir_to_backup | ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "dd of=/mnt/mount_point/tarfile"
+                tar vcf - $dir_to_backup | ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "dd of=/dev/xbd3d conv=noerror,sync"
                 #2>/dev/null
                 if [ $(echo $?) != 0 ]
                 then
                         echo "dd was not 100% successful for the given path."
-                        echo "Backup is done for accessible portions only (as the program was not invoked with administrative priviliges)."
+                        echo "Backup is done for accessible portions only (as the program was not invoked with administrative privileges)."
                         echo "Please wait..."
-                        ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
+                        # ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
                         delete_instance_key_group
                         exit 1
                 else
-                        echo "backup finished."
-                        ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
-                        echo "unmounted the volume."
+                        echo "Backup finished successfully."
+                        #ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
+                        #echo "unmounted the volume."
             fi
         else
-                tar zcf - $dir_to_backup | ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "dd of=/mnt/mount_point/tarfile" >/dev/null 2>&1
+                tar vcf - $dir_to_backup | ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "dd of=/dev/xbd3d conv=noerror,sync" >/dev/null 2>&1
                 if [ $(echo $?) != 0 ]
                 then
                         echo "Exit status: 1. Please wait..."
-                        ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
+                        # ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
                         delete_instance_key_group
                         exit 1
                 else
-                        ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
+                        echo # ssh -o StrictHostkeyChecking=no -i $key.pem root@$public_ip "/sbin/umount /mnt/mount_point"
             fi
         fi
 fi
