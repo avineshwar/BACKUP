@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/sh -
+# The "-" says that there are no more shell options; this is a security feature to prevent certain kinds of spoofing attacks.
 
 #===================================================================================#
 #       title          :EC2-BACKUP                                                  #
